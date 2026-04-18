@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
+import { useUserStore } from '../store/userStore';
 import Input from '../components/atoms/Input';
 import Button from '../components/atoms/Button';
 
@@ -27,7 +28,10 @@ const calculateDV = (nit) => {
 const Registro = () => {
   const [docTypes, setDocTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [authError, setAuthError] = useState(null);
   
+  const { registerUser, isLoading: isRegistering } = useUserStore();
+
   // Estado del formulario
   const [formData, setFormData] = useState({
     documentType: '',
@@ -38,7 +42,8 @@ const Registro = () => {
     email: '',
     phone: '',
     address: '',
-    birthDate: ''
+    birthDate: '',
+    password: ''
   });
 
   // Fetch document types from Firestore
@@ -100,10 +105,27 @@ const Registro = () => {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Datos de registro:", formData);
-    alert("Revisa la consola para ver los datos enviados.");
+    setAuthError(null);
+    
+    // Extraemos contraseña y correo para Auth, el resto va a Firestore
+    const { email, password, ...extraData } = formData;
+    
+    if (password.length < 6) {
+      setAuthError("La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
+
+    try {
+      await registerUser(email, password, extraData);
+      alert("¡Registro exitoso! Sesión iniciada.");
+      // Redirigir al inicio simulando navegación
+      window.location.href = '/';
+    } catch (error) {
+      console.error("Error al registrar:", error);
+      setAuthError("Hubo un error al registrar: " + error.message);
+    }
   };
 
   // Helper para saber si el tipo de documento seleccionado pertenece a una empresa
@@ -238,25 +260,33 @@ const Registro = () => {
               />
             </div>
 
-            {/* Fecha de Nacimiento (Solo Personas Naturales) */}
-            {!currentTypeIsCompany && (
-              <div className="sm:col-span-2">
-                <Input
-                  id="birthDate"
-                  type="date"
-                  label="Fecha de Nacimiento"
-                  value={formData.birthDate}
-                  onChange={handleChange}
-                  required
-                />
-              </div>
-            )}
+            {/* Contraseña */}
+            <div className="sm:col-span-2">
+              <Input
+                id="password"
+                type="password"
+                label="Contraseña"
+                placeholder="Mínimo 6 caracteres"
+                value={formData.password}
+                onChange={handleChange}
+                required
+              />
+            </div>
             
           </div>
 
+          {authError && (
+            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
+              {authError}
+            </div>
+          )}
+
           <div>
-            <Button type="submit" className="w-full py-3 text-lg font-semibold">
-              Registrarse
+            <Button type="submit" disabled={isRegistering} className="w-full py-3 text-lg font-semibold flex justify-center items-center">
+              {isRegistering ? (
+                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
+              ) : null}
+              {isRegistering ? 'Registrando...' : 'Registrarse'}
             </Button>
           </div>
           
