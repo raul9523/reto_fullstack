@@ -153,285 +153,185 @@ const Registro = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl w-full space-y-8 bg-white p-6 sm:p-10 rounded-2xl shadow-dna border border-gray-100">
-        
-        <div>
-          <h2 className="text-center text-3xl font-extrabold text-slate-800">
-            Crear una cuenta
-          </h2>
-          <p className="mt-2 text-center text-sm text-slate-500">
-            Únete a DÚO DREAMS
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          
-          <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-2">
-            
-            {/* Tipo de Documento */}
-            <div className="sm:col-span-2">
-              <label htmlFor="documentType" className="block text-slate-400 text-lg mb-1">
-                Tipo de Documento
-              </label>
-              <select
-                id="documentType"
-                value={formData.documentType}
-                onChange={handleDocTypeChange}
-                className="w-full input-dna bg-white"
-                required
-              >
-                {docTypes.map(type => (
-                  <option key={type.id} value={type.id}>
-                    {type.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+    <div className="min-h-screen bg-brand-dark flex flex-col justify-center items-center py-12 px-4 relative overflow-hidden">
+      {/* Decorative Elements */}
+      <div className="absolute top-[-5%] left-[-5%] w-[30%] h-[30%] bg-brand-gold/5 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-[-5%] right-[-5%] w-[30%] h-[30%] bg-brand-gold/5 rounded-full blur-3xl"></div>
 
-            {/* Número de Documento y DV */}
-            <div className={currentTypeIsCompany ? "sm:col-span-1" : "sm:col-span-2"}>
-              <Input
-                id="documentNumber"
-                label="Número de Documento"
-                placeholder="Ej. 123456789"
-                value={formData.documentNumber}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            
-            {/* Dígito de Verificación (Solo Empresas) */}
-            {currentTypeIsCompany && (
-              <div className="sm:col-span-1">
-                <Input
-                  id="dv"
-                  label="Dígito de Verificación (DV)"
-                  value={formData.dv}
-                  readOnly
-                  disabled
-                  className="bg-gray-100 cursor-not-allowed"
-                />
-              </div>
-            )}
+      <div className="w-full max-w-2xl animate-fade-in relative z-10">
+        <div className="bg-white rounded-[40px] shadow-2xl overflow-hidden border border-brand-gold/10">
+          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] p-10 text-center border-b border-brand-gold/20">
+            <h1 className="text-3xl font-black text-brand-gold tracking-tighter uppercase mb-1">Únete a DÚO DREAMS</h1>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.3em]">Crea tu cuenta premium</p>
+          </div>
 
-            {/* Nombres y Apellidos / Razón Social */}
-            {!currentTypeIsCompany ? (
-              <>
-                <Input
-                  id="firstName"
-                  label="Nombres"
-                  placeholder="Ej. Juan"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  required
-                />
-                
-                <Input
-                  id="lastName"
-                  label="Apellidos"
-                  placeholder="Ej. Pérez"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  required
-                />
-
-                {/* Fecha de Nacimiento (Solo Personas Naturales) */}
-                <div className="sm:col-span-2">
-                  <Input
-                    id="birthDate"
-                    type="date"
-                    label="Fecha de Nacimiento"
-                    value={formData.birthDate}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="sm:col-span-2">
-                  <Input
-                    id="firstName"
-                    label="Razón Social"
-                    placeholder="Ej. Mi Empresa SAS"
-                    value={formData.firstName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-                <div className="sm:col-span-2">
-                  <Input
-                    id="contactName"
-                    label="Nombre Representante Legal / Contacto"
-                    placeholder="Ej. María López"
-                    value={formData.contactName}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-              </>
-            )}
-
-            {/* Correo y Celular */}
-            <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Input
-                id="email"
-                type="email"
-                label="Correo Electrónico"
-                placeholder="juan@ejemplo.com"
-                value={formData.email}
-                onChange={handleChange}
-                required
-              />
-              <Input
-                id="phone"
-                type="tel"
-                label="Celular"
-                placeholder="300 000 0000"
-                value={formData.phone}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            {/* Dirección Estándar DIAN */}
-            <div className="sm:col-span-2 space-y-2">
-              <label className="block text-slate-400 text-lg mb-1">Dirección (Nomenclatura DIAN)</label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <form className="p-10 space-y-8" onSubmit={handleSubmit}>
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+              
+              {/* Document Type */}
+              <div className="sm:col-span-2 space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo de Documento</label>
                 <select
-                  id="viaType"
-                  value={formData.addressParts?.viaType || 'Calle'}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      addressParts: { ...prev.addressParts, viaType: val },
-                      address: `${val} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
-                    }));
-                  }}
-                  className="input-dna bg-white"
+                  id="documentType"
+                  value={formData.documentType}
+                  onChange={handleDocTypeChange}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:border-brand-gold transition-all"
+                  required
                 >
-                  <option value="Calle">Calle</option>
-                  <option value="Carrera">Carrera</option>
-                  <option value="Avenida">Avenida</option>
-                  <option value="Diagonal">Diagonal</option>
-                  <option value="Transversal">Transversal</option>
-                  <option value="Circular">Circular</option>
+                  {docTypes.map(type => (
+                    <option key={type.id} value={type.id}>{type.name}</option>
+                  ))}
                 </select>
-                
-                <input
-                  type="text"
-                  placeholder="Número"
-                  className="input-dna"
-                  value={formData.addressParts?.numeroPrincipal || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      addressParts: { ...prev.addressParts, numeroPrincipal: val },
-                      address: `${prev.addressParts?.viaType || 'Calle'} ${val} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
-                    }));
-                  }}
-                  required
-                />
+              </div>
 
-                <input
-                  type="text"
-                  placeholder="# Cruce"
-                  className="input-dna"
-                  value={formData.addressParts?.numeroSecundario || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      addressParts: { ...prev.addressParts, numeroSecundario: val },
-                      address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${val} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
-                    }));
-                  }}
-                  required
-                />
-
-                <input
-                  type="text"
-                  placeholder="- Placa"
-                  className="input-dna"
-                  value={formData.addressParts?.numeroPlaca || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      addressParts: { ...prev.addressParts, numeroPlaca: val },
-                      address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${val} ${prev.addressParts?.complemento || ''}`.trim()
-                    }));
-                  }}
+              {/* Document Number */}
+              <div className={currentTypeIsCompany ? "sm:col-span-1" : "sm:col-span-2"}>
+                <Input
+                  id="documentNumber"
+                  label="Número de Documento"
+                  placeholder="Ej. 123456789"
+                  value={formData.documentNumber}
+                  onChange={handleChange}
                   required
                 />
               </div>
-              <input
-                type="text"
-                placeholder="Complemento (Apto, Local, Interior...)"
-                className="input-dna w-full"
-                value={formData.addressParts?.complemento || ''}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  setFormData(prev => ({
-                    ...prev,
-                    addressParts: { ...prev.addressParts, complemento: val },
-                    address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${val}`.trim()
-                  }));
-                }}
-              />
-              <p className="text-[10px] text-slate-400 italic">Vista previa: {formData.address}</p>
+              
+              {currentTypeIsCompany && (
+                <div className="sm:col-span-1">
+                  <Input
+                    id="dv"
+                    label="Dígito de Verificación"
+                    value={formData.dv}
+                    readOnly
+                    disabled
+                    className="bg-gray-50 text-brand-gold font-bold"
+                  />
+                </div>
+              )}
+
+              {/* Name / Business Name */}
+              {!currentTypeIsCompany ? (
+                <>
+                  <Input id="firstName" label="Nombres" value={formData.firstName} onChange={handleChange} required />
+                  <Input id="lastName" label="Apellidos" value={formData.lastName} onChange={handleChange} required />
+                  <div className="sm:col-span-2">
+                    <Input id="birthDate" type="date" label="Fecha de Nacimiento" value={formData.birthDate} onChange={handleChange} required />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="sm:col-span-2">
+                    <Input id="firstName" label="Razón Social" value={formData.firstName} onChange={handleChange} required />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <Input id="contactName" label="Representante Legal" value={formData.contactName} onChange={handleChange} required />
+                  </div>
+                </>
+              )}
+
+              {/* Contact Info */}
+              <Input id="email" type="email" label="Correo Electrónico" value={formData.email} onChange={handleChange} required />
+              <Input id="phone" type="tel" label="Celular" value={formData.phone} onChange={handleChange} required />
+
+              {/* DIAN Address */}
+              <div className="sm:col-span-2 space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Dirección (Norma DIAN)</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <select
+                    id="viaType"
+                    value={formData.addressParts?.viaType || 'Calle'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        addressParts: { ...prev.addressParts, viaType: val },
+                        address: `${val} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
+                      }));
+                    }}
+                    className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                  >
+                    {['Calle', 'Carrera', 'Avenida', 'Diagonal', 'Transversal'].map(v => <option key={v} value={v}>{v}</option>)}
+                  </select>
+                  <input
+                    type="text" placeholder="Número" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                    value={formData.addressParts?.numeroPrincipal || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        addressParts: { ...prev.addressParts, numeroPrincipal: val },
+                        address: `${prev.addressParts?.viaType || 'Calle'} ${val} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
+                      }));
+                    }}
+                    required
+                  />
+                  <input
+                    type="text" placeholder="# Cruce" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                    value={formData.addressParts?.numeroSecundario || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        addressParts: { ...prev.addressParts, numeroSecundario: val },
+                        address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${val} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
+                      }));
+                    }}
+                    required
+                  />
+                  <input
+                    type="text" placeholder="- Placa" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                    value={formData.addressParts?.numeroPlaca || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => ({
+                        ...prev,
+                        addressParts: { ...prev.addressParts, numeroPlaca: val },
+                        address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${val} ${prev.addressParts?.complemento || ''}`.trim()
+                      }));
+                    }}
+                    required
+                  />
+                </div>
+                <input
+                  type="text" placeholder="Complemento (Apto, Interior...)" className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                  value={formData.addressParts?.complemento || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      addressParts: { ...prev.addressParts, complemento: val },
+                      address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${val}`.trim()
+                    }));
+                  }}
+                />
+                <p className="text-[10px] text-brand-gold font-bold italic tracking-wide">Vista previa: {formData.address}</p>
+              </div>
+
+              <div className="sm:col-span-2">
+                <Input id="password" type="password" label="Contraseña" placeholder="Mínimo 6 caracteres" value={formData.password} onChange={handleChange} required />
+              </div>
             </div>
 
-            {/* Contraseña */}
-            <div className="sm:col-span-2">
-              <Input
-                id="password"
-                type="password"
-                label="Contraseña"
-                placeholder="Mínimo 6 caracteres"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </div>
-            
-          </div>
+            {authError && (
+              <div className="p-4 bg-red-50 text-red-500 rounded-2xl text-[10px] font-bold uppercase tracking-widest text-center border border-red-100">
+                {authError}
+              </div>
+            )}
 
-          {authError && (
-            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm">
-              {authError}
-            </div>
-          )}
-
-          <div>
-            <Button type="submit" disabled={isRegistering} className="w-full py-3 text-lg font-semibold flex justify-center items-center">
-              {isRegistering ? (
-                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
-              ) : null}
-              {isRegistering ? 'Registrando...' : 'Registrarse'}
+            <Button type="submit" disabled={isRegistering} className="w-full py-5 rounded-[25px] shadow-xl shadow-brand-gold/10 text-sm font-black uppercase tracking-[0.2em] transition-all hover:scale-[1.01]">
+              {isRegistering ? 'Creando cuenta...' : 'Crear Cuenta Premium'}
             </Button>
-          </div>
 
-          <div className="text-center mt-6">
-            <p className="text-sm text-slate-600">
-              ¿Ya tienes una cuenta?{' '}
-              <a 
-                href="/login" 
-                className="font-bold text-brand-blue hover:text-blue-500 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.location.href = '/login';
-                }}
-              >
-                Inicia sesión aquí
-              </a>
-            </p>
-          </div>
-          
-        </form>
+            <div className="text-center">
+              <p className="text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+                ¿Ya tienes una cuenta?{' '}
+                <button type="button" onClick={() => window.location.href = '/login'} className="text-brand-dark font-black hover:text-brand-gold transition-colors border-b border-brand-dark hover:border-brand-gold">
+                  Inicia sesión aquí
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

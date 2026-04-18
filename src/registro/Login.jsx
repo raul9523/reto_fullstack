@@ -53,111 +53,93 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8 bg-white p-8 sm:p-10 rounded-2xl shadow-dna border border-gray-100">
-        
-        <div className="text-center">
-          <div className="flex justify-center items-center mb-4 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <span className="text-3xl font-bold text-brand-blue">DÚO</span>
-            <span className="text-3xl font-bold text-slate-800 ml-1">DREAMS</span>
-          </div>
-          <h2 className="text-2xl font-extrabold text-slate-800">
-            Bienvenido de nuevo
-          </h2>
-          <p className="mt-2 text-sm text-slate-500">
-            Ingresa tus credenciales para acceder
-          </p>
-        </div>
-        
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="space-y-4">
-            <Input
-              id="email"
-              type="email"
-              label="Correo Electrónico"
-              placeholder="tu@correo.com"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            
-            <Input
-              id="password"
-              type="password"
-              label="Contraseña"
-              placeholder="••••••••"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
+    <div className="min-h-screen bg-brand-dark flex flex-col justify-center items-center p-4 relative overflow-hidden">
+      {/* Elementos decorativos de fondo */}
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-brand-gold/5 rounded-full blur-3xl"></div>
+      <div className="absolute bottom-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-gold/5 rounded-full blur-3xl"></div>
+
+      {/* Botón Volver */}
+      <button 
+        onClick={() => window.location.href = '/'}
+        className="absolute top-8 left-8 text-slate-500 hover:text-brand-gold transition-colors flex items-center gap-2 font-bold text-[10px] uppercase tracking-[0.2em]"
+      >
+        &larr; Volver
+      </button>
+
+      <div className="w-full max-w-md animate-fade-in relative z-10">
+        <div className="bg-white rounded-[40px] shadow-2xl overflow-hidden border border-brand-gold/10">
+          <div className="bg-gradient-to-br from-[#1A1A1A] to-[#2A2A2A] p-12 text-center border-b border-brand-gold/20">
+            <h1 className="text-4xl font-black text-brand-gold tracking-tighter uppercase mb-2">DÚO DREAMS</h1>
+            <p className="text-slate-400 text-[10px] font-bold uppercase tracking-[0.3em]">Luxury Sleepwear</p>
           </div>
 
-          {authError && (
-            <div className="p-3 bg-red-100 text-red-700 rounded-lg text-sm animate-shake">
-              {authError}
-            </div>
-          )}
-
-          {successMessage && (
-            <div className="p-3 bg-green-100 text-green-700 rounded-lg text-sm">
-              {successMessage}
-            </div>
-          )}
-
-          <div className="flex items-center justify-between text-sm">
-            <div className="flex items-center">
-              <input
-                id="remember-me"
-                name="remember-me"
-                type="checkbox"
-                className="h-4 w-4 text-brand-blue focus:ring-brand-blue border-gray-300 rounded"
+          <form className="p-10 space-y-6" onSubmit={handleSubmit}>
+            <div className="space-y-5">
+              <Input 
+                id="email" 
+                label="Correo Electrónico" 
+                type="email"
+                placeholder="tu@email.com" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
               />
-              <label htmlFor="remember-me" className="ml-2 block text-slate-600">
-                Recordarme
-              </label>
+              <div className="space-y-2">
+                <Input 
+                  id="password" 
+                  label="Contraseña" 
+                  type="password" 
+                  placeholder="••••••••" 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                />
+                <div className="text-right">
+                  <button 
+                    type="button"
+                    onClick={handleForgotPassword}
+                    className="text-[9px] text-brand-gold font-bold hover:underline uppercase tracking-widest"
+                  >
+                    ¿Olvidaste tu contraseña?
+                  </button>
+                </div>
+              </div>
             </div>
 
-            <div className="text-sm">
-              <a 
-                href="#" 
-                onClick={handleForgotPassword}
-                className="font-medium text-brand-blue hover:text-blue-500 transition-colors"
-              >
-                ¿Olvidaste tu contraseña?
-              </a>
-            </div>
-          </div>
+            {authError && (
+              <div className="p-3 bg-red-50 text-red-500 rounded-xl text-[10px] font-bold uppercase tracking-widest text-center animate-shake border border-red-100">
+                {authError}
+              </div>
+            )}
 
-          <div>
+            {successMessage && (
+              <div className="p-3 bg-green-50 text-green-600 rounded-xl text-[10px] font-bold uppercase tracking-widest text-center border border-green-100">
+                {successMessage}
+              </div>
+            )}
+
             <Button 
               type="submit" 
-              disabled={isLoading} 
-              className="w-full py-3 text-lg font-semibold flex justify-center items-center"
+              className="w-full py-4 rounded-2xl shadow-xl shadow-brand-gold/10 text-xs font-bold uppercase tracking-widest transition-all hover:scale-[1.02] active:scale-[0.98]"
+              disabled={isLoading}
             >
-              {isLoading ? (
-                <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></span>
-              ) : null}
-              {isLoading ? 'Iniciando sesión...' : 'Entrar'}
+              {isLoading ? 'Verificando...' : 'Iniciar Sesión'}
             </Button>
-          </div>
 
-          <div className="text-center mt-6">
-            <p className="text-sm text-slate-600">
-              ¿No tienes una cuenta?{' '}
-              <a 
-                href="/registro" 
-                className="font-bold text-brand-blue hover:text-blue-500 transition-colors"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.location.href = '/registro';
-                }}
-              >
-                Regístrate aquí
-              </a>
-            </p>
-          </div>
-          
-        </form>
+            <div className="text-center pt-4">
+              <p className="text-slate-400 text-[10px] uppercase tracking-widest font-bold">
+                ¿No tienes cuenta?{' '}
+                <button 
+                  type="button"
+                  onClick={() => window.location.href = '/registro'}
+                  className="text-brand-dark font-black hover:text-brand-gold transition-colors border-b border-brand-dark hover:border-brand-gold pb-0.5"
+                >
+                  Regístrate aquí
+                </button>
+              </p>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );
