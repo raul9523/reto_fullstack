@@ -12,8 +12,8 @@ const useNotificationStore = create((set, get) => ({
     
     // Si es admin, escucha notificaciones para 'admin' o para su ID específico
     const q = isAdmin 
-      ? query(collection(db, 'notifications'), where('userId', 'in', ['admin', userId]), orderBy('createdAt', 'desc'))
-      : query(collection(db, 'notifications'), where('userId', '==', userId), orderBy('createdAt', 'desc'));
+      ? query(collection(db, 'notifications'), where('userId', 'in', ['admin', userId]))
+      : query(collection(db, 'notifications'), where('userId', '==', userId));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
       const notes = [];
@@ -23,6 +23,10 @@ const useNotificationStore = create((set, get) => ({
         notes.push({ id: doc.id, ...data });
         if (!data.read) unread++;
       });
+      
+      // Ordenar en memoria para evitar el error de índice de Firestore
+      notes.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      
       set({ notifications: notes, unreadCount: unread, isLoading: false });
     });
 
