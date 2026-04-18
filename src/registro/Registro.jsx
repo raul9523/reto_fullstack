@@ -25,6 +25,19 @@ const calculateDV = (nit) => {
   return y > 1 ? (11 - y).toString() : y.toString();
 };
 
+const COLOMBIA_DATA = {
+  "Antioquia": ["Medellín", "Envigado", "Itagüí", "Bello", "Rionegro", "Sabaneta"],
+  "Bogotá D.C.": ["Bogotá"],
+  "Valle del Cauca": ["Cali", "Palmira", "Buenaventura", "Tuluá", "Buga"],
+  "Atlántico": ["Barranquilla", "Soledad", "Malambo", "Puerto Colombia"],
+  "Santander": ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja"],
+  "Bolívar": ["Cartagena", "Turbaco", "Magangué"],
+  "Cundinamarca": ["Soacha", "Chía", "Zipaquirá", "Facatativá", "Fusagasugá"],
+  "Risaralda": ["Pereira", "Dosquebradas"],
+  "Caldas": ["Manizales"],
+  "Quindío": ["Armenia"]
+};
+
 const Registro = () => {
   const [docTypes, setDocTypes] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -42,13 +55,16 @@ const Registro = () => {
     contactName: '',
     email: '',
     phone: '',
+    department: 'Antioquia',
+    city: 'Medellín',
     address: '',
     addressParts: {
       viaType: 'Calle',
       numeroPrincipal: '',
       numeroSecundario: '',
       numeroPlaca: '',
-      complemento: ''
+      complemento: '',
+      nombreVereda: ''
     },
     birthDate: '',
     password: ''
@@ -240,79 +256,145 @@ const Registro = () => {
               {/* Contact Info */}
               <Input id="email" type="email" label="Correo Electrónico" value={formData.email} onChange={handleChange} required />
               <Input id="phone" type="tel" label="Celular" value={formData.phone} onChange={handleChange} required />
+              
+              {/* Departamento y Ciudad */}
+              <div className="sm:col-span-1 space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Departamento</label>
+                <select
+                  id="department"
+                  value={formData.department}
+                  onChange={(e) => {
+                    const dept = e.target.value;
+                    setFormData(prev => ({ 
+                      ...prev, 
+                      department: dept, 
+                      city: COLOMBIA_DATA[dept][0] 
+                    }));
+                  }}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:border-brand-gold"
+                  required
+                >
+                  {Object.keys(COLOMBIA_DATA).map(dept => (
+                    <option key={dept} value={dept}>{dept}</option>
+                  ))}
+                </select>
+              </div>
 
-              {/* DIAN Address */}
+              <div className="sm:col-span-1 space-y-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Ciudad</label>
+                <select
+                  id="city"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  className="w-full bg-gray-50 border border-gray-100 rounded-2xl px-5 py-4 text-sm font-medium outline-none focus:border-brand-gold"
+                  required
+                >
+                  {COLOMBIA_DATA[formData.department].map(city => (
+                    <option key={city} value={city}>{city}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Dirección Estándar DIAN / Vereda */}
               <div className="sm:col-span-2 space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
-                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Dirección (Norma DIAN)</label>
-                <div className="grid grid-cols-2 gap-2">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Dirección de Entrega</label>
+                <div className="flex gap-2">
                   <select
                     id="viaType"
                     value={formData.addressParts?.viaType || 'Calle'}
                     onChange={(e) => {
                       const val = e.target.value;
-                      setFormData(prev => ({
-                        ...prev,
-                        addressParts: { ...prev.addressParts, viaType: val },
-                        address: `${val} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
-                      }));
+                      setFormData(prev => {
+                        const newParts = { ...prev.addressParts, viaType: val };
+                        let fullAddress = "";
+                        if (val === 'Vereda') {
+                          fullAddress = `Vereda ${newParts.nombreVereda || ''}`;
+                        } else {
+                          fullAddress = `${val} ${newParts.numeroPrincipal || ''} # ${newParts.numeroSecundario || ''} - ${newParts.numeroPlaca || ''} ${newParts.complemento || ''}`;
+                        }
+                        return { ...prev, addressParts: newParts, address: fullAddress.trim() };
+                      });
                     }}
-                    className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                    className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none min-w-[120px]"
                   >
-                    {['Calle', 'Carrera', 'Avenida', 'Diagonal', 'Transversal'].map(v => <option key={v} value={v}>{v}</option>)}
+                    {['Calle', 'Carrera', 'Avenida', 'Diagonal', 'Transversal', 'Vereda'].map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
-                  <input
-                    type="text" placeholder="Número" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
-                    value={formData.addressParts?.numeroPrincipal || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFormData(prev => ({
-                        ...prev,
-                        addressParts: { ...prev.addressParts, numeroPrincipal: val },
-                        address: `${prev.addressParts?.viaType || 'Calle'} ${val} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
-                      }));
-                    }}
-                    required
-                  />
-                  <input
-                    type="text" placeholder="# Cruce" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
-                    value={formData.addressParts?.numeroSecundario || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFormData(prev => ({
-                        ...prev,
-                        addressParts: { ...prev.addressParts, numeroSecundario: val },
-                        address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${val} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
-                      }));
-                    }}
-                    required
-                  />
-                  <input
-                    type="text" placeholder="- Placa" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
-                    value={formData.addressParts?.numeroPlaca || ''}
-                    onChange={(e) => {
-                      const val = e.target.value;
-                      setFormData(prev => ({
-                        ...prev,
-                        addressParts: { ...prev.addressParts, numeroPlaca: val },
-                        address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${val} ${prev.addressParts?.complemento || ''}`.trim()
-                      }));
-                    }}
-                    required
-                  />
+                  
+                  {formData.addressParts.viaType === 'Vereda' ? (
+                    <input
+                      type="text" 
+                      placeholder="Nombre de la Vereda" 
+                      className="flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                      value={formData.addressParts.nombreVereda}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData(prev => {
+                          const newParts = { ...prev.addressParts, nombreVereda: val };
+                          return { ...prev, addressParts: newParts, address: `Vereda ${val}` };
+                        });
+                      }}
+                      required
+                    />
+                  ) : (
+                    <div className="flex-1 grid grid-cols-3 gap-2">
+                      <input
+                        type="text" placeholder="Número" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                        value={formData.addressParts?.numeroPrincipal || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData(prev => {
+                            const newParts = { ...prev.addressParts, numeroPrincipal: val };
+                            const full = `${newParts.viaType} ${val} # ${newParts.numeroSecundario} - ${newParts.numeroPlaca} ${newParts.complemento}`;
+                            return { ...prev, addressParts: newParts, address: full.trim() };
+                          });
+                        }}
+                        required
+                      />
+                      <input
+                        type="text" placeholder="# Cruce" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                        value={formData.addressParts?.numeroSecundario || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData(prev => {
+                            const newParts = { ...prev.addressParts, numeroSecundario: val };
+                            const full = `${newParts.viaType} ${newParts.numeroPrincipal} # ${val} - ${newParts.numeroPlaca} ${newParts.complemento}`;
+                            return { ...prev, addressParts: newParts, address: full.trim() };
+                          });
+                        }}
+                        required
+                      />
+                      <input
+                        type="text" placeholder="- Placa" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                        value={formData.addressParts?.numeroPlaca || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData(prev => {
+                            const newParts = { ...prev.addressParts, numeroPlaca: val };
+                            const full = `${newParts.viaType} ${newParts.numeroPrincipal} # ${newParts.numeroSecundario} - ${val} ${newParts.complemento}`;
+                            return { ...prev, addressParts: newParts, address: full.trim() };
+                          });
+                        }}
+                        required
+                      />
+                    </div>
+                  )}
                 </div>
-                <input
-                  type="text" placeholder="Complemento (Apto, Interior...)" className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
-                  value={formData.addressParts?.complemento || ''}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    setFormData(prev => ({
-                      ...prev,
-                      addressParts: { ...prev.addressParts, complemento: val },
-                      address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${val}`.trim()
-                    }));
-                  }}
-                />
-                <p className="text-[10px] text-brand-gold font-bold italic tracking-wide">Vista previa: {formData.address}</p>
+
+                {formData.addressParts.viaType !== 'Vereda' && (
+                  <input
+                    type="text" placeholder="Complemento (Apto, Interior...)" className="w-full bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                    value={formData.addressParts?.complemento || ''}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData(prev => {
+                        const newParts = { ...prev.addressParts, complemento: val };
+                        const full = `${newParts.viaType} ${newParts.numeroPrincipal} # ${newParts.numeroSecundario} - ${newParts.numeroPlaca} ${val}`;
+                        return { ...prev, addressParts: newParts, address: full.trim() };
+                      });
+                    }}
+                  />
+                )}
+                <p className="text-[10px] text-brand-gold font-bold italic tracking-wide">Dirección completa: {formData.address} ({formData.city}, {formData.department})</p>
               </div>
 
               <div className="sm:col-span-2">
