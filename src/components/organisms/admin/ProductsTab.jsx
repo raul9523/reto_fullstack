@@ -49,11 +49,22 @@ const ProductsTab = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // Limpiar datos para evitar undefined en Firestore
+      const sanitizedData = {
+        name: formData.name || '',
+        description: formData.description || '',
+        price: Number(formData.price) || 0,
+        cost: Number(formData.cost) || 0,
+        stockQuantity: Number(formData.stockQuantity) || 0,
+        category: formData.category || (categories[0]?.name || 'Pijamas'),
+        imageUrl: formData.imageUrl || ''
+      };
+
       if (editingProduct) {
-        await updateDoc(doc(db, 'products', editingProduct.id), formData);
+        await updateDoc(doc(db, 'products', editingProduct.id), sanitizedData);
       } else {
         await addDoc(collection(db, 'products'), {
-          ...formData,
+          ...sanitizedData,
           createdAt: new Date().toISOString()
         });
       }
@@ -62,8 +73,9 @@ const ProductsTab = () => {
       });
       setEditingProduct(null);
       fetchData();
-      alert("Producto guardado!");
+      alert("¡Producto guardado correctamente!");
     } catch (error) {
+      console.error("Error al guardar:", error);
       alert("Error: " + error.message);
     }
   };
@@ -71,12 +83,12 @@ const ProductsTab = () => {
   const handleEdit = (product) => {
     setEditingProduct(product);
     setFormData({
-      name: product.name,
-      description: product.description,
-      price: product.price,
+      name: product.name || '',
+      description: product.description || '',
+      price: product.price || 0,
       cost: product.cost || 0,
-      stockQuantity: product.stockQuantity,
-      category: product.category,
+      stockQuantity: product.stockQuantity || 0,
+      category: product.category || (categories[0]?.name || 'Pijamas'),
       imageUrl: product.imageUrl || ''
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
