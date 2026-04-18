@@ -134,7 +134,7 @@ const Checkout = () => {
       // 1. Guardar el pedido en Firestore
       await addDoc(collection(db, 'orders'), orderData);
 
-      // 2. Lógica condicionada al tipo de pago
+      // 2. Lógica condicionada al tipo de pago (Notificaciones Internas)
       if (isInstantPayment) {
         // DESCONTAR STOCK INMEDIATAMENTE
         for (const item of items) {
@@ -146,38 +146,40 @@ const Checkout = () => {
           }
         }
 
-        // NOTIFICACIÓN DE ÉXITO INMEDIATA
-        await addDoc(collection(db, 'mail'), {
-          to: [currentUser.email, 'raulpte0211@gmail.com'],
-          message: {
-            subject: `¡Pago Confirmado! Pedido DÚO DREAMS: ${orderId}`,
-            html: `
-              <h1>¡Gracias por tu compra!</h1>
-              <p>Tu pago por <b>PSE</b> ha sido confirmado. El pedido <b>${orderId}</b> ya está en proceso.</p>
-              <p>Total: <b>$${totalWithShipping.toLocaleString('es-CO')}</b></p>
-            `
-          }
+        // Notificar al cliente
+        await addDoc(collection(db, 'notifications'), {
+          userId: currentUser.uid,
+          title: '¡Pago Exitoso! 💳',
+          message: `Tu pago para el pedido ${orderId} fue procesado correctamente.`,
+          createdAt: new Date().toISOString(),
+          read: false
+        });
+
+        // Notificar al admin
+        await addDoc(collection(db, 'notifications'), {
+          userId: 'admin', // Usaremos un flag para que todos los admins lo vean o un ID específico
+          title: '¡NUEVA VENTA! 💰',
+          message: `El cliente ${currentUser.email} compró el pedido ${orderId} por PSE.`,
+          createdAt: new Date().toISOString(),
+          read: false
         });
       } else {
-        // NOTIFICACIÓN DE "ESPERA" PARA TRANSFERENCIA
-        await addDoc(collection(db, 'mail'), {
-          to: [currentUser.email],
-          message: {
-            subject: `Pedido en Validación: ${orderId}`,
-            html: `
-              <h1>Recibimos tu solicitud de pedido</h1>
-              <p>Estamos validando tu transferencia para el pedido <b>${orderId}</b>.</p>
-              <p>Una vez confirmemos el pago, recibirás un correo de confirmación y procesaremos tu envío.</p>
-            `
-          }
+        // Notificación de espera para el cliente
+        await addDoc(collection(db, 'notifications'), {
+          userId: currentUser.uid,
+          title: 'Pedido en Validación ⏳',
+          message: `Recibimos tu pedido ${orderId}. Estamos validando el comprobante de pago.`,
+          createdAt: new Date().toISOString(),
+          read: false
         });
-        // Notificar al admin que hay algo que validar
-        await addDoc(collection(db, 'mail'), {
-          to: ['raulpte0211@gmail.com'],
-          message: {
-            subject: `NUEVA VALIDACIÓN PENDIENTE: ${orderId}`,
-            html: `<p>El cliente ${currentUser.email} ha subido un comprobante. Revisa el panel de control.</p>`
-          }
+
+        // Notificar al admin sobre validación pendiente
+        await addDoc(collection(db, 'notifications'), {
+          userId: 'admin',
+          title: 'Validación Pendiente 📝',
+          message: `Nueva transferencia a validar del pedido ${orderId} (${currentUser.email}).`,
+          createdAt: new Date().toISOString(),
+          read: false
         });
       }
 

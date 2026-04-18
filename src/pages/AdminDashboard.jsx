@@ -73,24 +73,17 @@ const AdminDashboard = () => {
       
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'Pagado' } : o));
 
-      // 3. Notificación Final al Cliente e Admin Actual
-      await addDoc(collection(db, 'mail'), {
-        to: [order.userEmail, currentUser.email],
-        message: {
-          subject: `¡Pago Confirmado! Pedido DÚO DREAMS: ${order.orderNumber}`,
-          html: `
-            <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-              <h1 style="color: #c4a484;">¡Pago Validado con Éxito!</h1>
-              <p>Hola, hemos verificado tu transferencia para el pedido <b>${order.orderNumber}</b>.</p>
-              <p>Tu pedido ya está en proceso de despacho. ¡Muchas gracias por tu compra!</p>
-              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-              <p style="font-size: 12px; color: #94a3b8;">DÚO DREAMS - Tienda Oficial</p>
-            </div>
-          `
-        }
+      // 3. Notificación Interna al Cliente
+      await addDoc(collection(db, 'notifications'), {
+        userId: order.userId,
+        title: '¡Pago Confirmado! ✅',
+        message: `Tu pago para el pedido ${order.orderNumber} ha sido validado. ¡Estamos preparando tu envío!`,
+        createdAt: new Date().toISOString(),
+        read: false,
+        type: 'order_update'
       });
 
-      alert("¡Pago confirmado! Stock descontado y cliente notificado.");
+      alert("¡Pago confirmado y cliente notificado en su panel!");
     } catch (error) {
       console.error("Error al confirmar pago:", error);
       alert("Error al confirmar el pago.");
@@ -129,25 +122,14 @@ const AdminDashboard = () => {
         carrier: carrier
       });
 
-      // Notificar al cliente con su guía
-      await addDoc(collection(db, 'mail'), {
-        to: [order.userEmail],
-        message: {
-          subject: `📦 ¡Tu pedido ha sido despachado! - ${order.orderNumber}`,
-          html: `
-            <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
-              <h1 style="color: #c4a484;">¡Tu pedido va en camino!</h1>
-              <p>Hola, tu pedido <b>${order.orderNumber}</b> ya ha sido entregado a la transportadora.</p>
-              <div style="background: #f8fafc; padding: 20px; border-radius: 15px; border: 1px solid #f1f5f9; margin: 20px 0;">
-                <p style="margin: 0; font-size: 14px;"><b>Transportadora:</b> ${carrier}</p>
-                <p style="margin: 10px 0 0 0; font-size: 16px;"><b>Número de Guía:</b> <span style="color: #B76E79; font-weight: bold;">${number}</span></p>
-              </div>
-              <p>Pronto estarás disfrutando de tus productos DÚO DREAMS.</p>
-              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
-              <p style="font-size: 12px; color: #94a3b8;">DÚO DREAMS - Tienda Oficial</p>
-            </div>
-          `
-        }
+      // Notificar al cliente internamente
+      await addDoc(collection(db, 'notifications'), {
+        userId: order.userId,
+        title: '📦 ¡Pedido Despachado!',
+        message: `Tu pedido ${order.orderNumber} ya va en camino por ${carrier}. Guía: ${number}`,
+        createdAt: new Date().toISOString(),
+        read: false,
+        type: 'shipping_update'
       });
 
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Despachado', trackingNumber: number, carrier } : o));

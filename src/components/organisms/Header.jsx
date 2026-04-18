@@ -3,11 +3,21 @@ import PropTypes from 'prop-types';
 import Button from '../atoms/Button';
 import useProductStore from '../../store/productStore';
 import { useUserStore } from '../../store/userStore';
+import useNotificationStore from '../../store/notificationStore';
 
 const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartClick }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = React.useState(false);
   const { searchQuery, setSearchQuery } = useProductStore();
   const { currentUser, logout } = useUserStore();
+  const { notifications, unreadCount, listenToNotifications, markAsRead, markAllAsRead } = useNotificationStore();
+
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const isAdmin = currentUser.email.toLowerCase() === 'raulpte0211@gmail.com' || currentUser.role === 'admin';
+    const unsubscribe = listenToNotifications(currentUser.uid, isAdmin);
+    return () => unsubscribe && unsubscribe();
+  }, [currentUser, listenToNotifications]);
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
@@ -44,6 +54,75 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
           {/* Actions / User Profile */}
           <div className="flex items-center space-x-2 sm:space-x-4">
             
+            {/* Notifications Bell */}
+            {currentUser && (
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    setIsNotificationsOpen(!isNotificationsOpen);
+                    if (isNotificationsOpen) setIsMenuOpen(false);
+                  }}
+                  className="relative p-2 text-slate-600 hover:text-brand-gold transition-colors focus:outline-none"
+                >
+                  <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                  </svg>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 bg-red-500 text-white text-[9px] font-black rounded-full h-4 w-4 flex items-center justify-center border-2 border-white animate-pulse">
+                      {unreadCount}
+                    </span>
+                  )}
+                </button>
+
+                {/* Notifications Dropdown */}
+                {isNotificationsOpen && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setIsNotificationsOpen(false)}></div>
+                    <div className="absolute right-0 mt-2 w-80 bg-white rounded-3xl shadow-2xl border border-gray-100 z-50 overflow-hidden animate-fade-in-up">
+                      <div className="p-4 border-b border-gray-50 flex justify-between items-center bg-gray-50/50">
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-tighter">Notificaciones</h3>
+                        {unreadCount > 0 && (
+                          <button 
+                            onClick={() => markAllAsRead(currentUser.uid, currentUser.role === 'admin')}
+                            className="text-[9px] font-bold text-brand-gold hover:underline uppercase"
+                          >
+                            Marcar todo leído
+                          </button>
+                        )}
+                      </div>
+                      <div className="max-h-[350px] overflow-y-auto">
+                        {notifications.length === 0 ? (
+                          <div className="p-8 text-center">
+                            <p className="text-xs text-slate-400 italic">No tienes notificaciones aún.</p>
+                          </div>
+                        ) : (
+                          notifications.map((note) => (
+                            <div 
+                              key={note.id} 
+                              onClick={() => {
+                                markAsRead(note.id);
+                                if (note.type === 'order_update') window.location.href = '/mis-pedidos';
+                              }}
+                              className={`p-4 border-b border-gray-50 last:border-0 cursor-pointer hover:bg-gray-50 transition-colors ${!note.read ? 'bg-brand-gold/5' : ''}`}
+                            >
+                              <div className="flex gap-3">
+                                <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${!note.read ? 'bg-brand-gold' : 'bg-transparent'}`}></div>
+                                <div>
+                                  <p className="text-xs font-bold text-slate-800 mb-0.5">{note.title}</p>
+                                  <p className="text-[11px] text-slate-500 leading-tight">{note.message}</p>
+                                  <p className="text-[9px] text-slate-400 mt-2">{new Date(note.createdAt).toLocaleString('es-CO', { hour: '2-digit', minute: '2-digit', day: 'numeric', month: 'short' })}</p>
+                                </div>
+                              </div>
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Cart Icon */}
             <div 
               className="relative cursor-pointer text-slate-600 hover:text-brand-gold transition-colors p-2"
