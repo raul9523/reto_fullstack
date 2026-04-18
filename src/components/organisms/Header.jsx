@@ -2,9 +2,11 @@ import React from 'react';
 import PropTypes from 'prop-types';
 import Button from '../atoms/Button';
 import useProductStore from '../../store/productStore';
+import { useUserStore } from '../../store/userStore';
 
 const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartClick }) => {
   const { searchQuery, setSearchQuery } = useProductStore();
+  const { currentUser, logout } = useUserStore();
 
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
@@ -57,18 +59,20 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             </div>
 
             {/* User Auth state */}
-            {user ? (
+            {currentUser ? (
               <div className="flex items-center space-x-3">
                 <div className="hidden sm:block text-sm">
-                  <p className="text-slate-800 font-medium">{user.displayName || 'User'}</p>
+                  <p className="text-slate-800 font-medium">
+                    Hola, {currentUser.firstName || currentUser.email.split('@')[0]}
+                  </p>
                 </div>
-                <Button variant="secondary" onClick={onLogoutClick} className="px-3 py-1.5 text-sm">
-                  Logout
+                <Button variant="secondary" onClick={logout} className="px-3 py-1.5 text-sm">
+                  Cerrar Sesión
                 </Button>
               </div>
             ) : (
-              <Button variant="primary" onClick={onLoginClick} className="px-4 py-2 text-sm">
-                Login
+              <Button variant="primary" onClick={() => window.location.href = '/registro'} className="px-4 py-2 text-sm">
+                Registrarse
               </Button>
             )}
 
