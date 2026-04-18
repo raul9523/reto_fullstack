@@ -96,12 +96,19 @@ const Checkout = () => {
 
   const handleConfirmOrder = async () => {
     if (items.length === 0) return;
+    if (selectedPaymentMethod === 'transfer' && !shippingInfo.notes) {
+      // Usaremos el campo 'notes' o uno nuevo para el comprobante
+    }
     
     setIsConfirming(true);
     try {
       const orderId = `ORD-${Date.now().toString().slice(-6)}`;
       const totalWithShipping = totalAmount + (settings.shippingCost || 0);
       
+      // Determinar estado inicial y si descuenta stock de una vez
+      const isInstantPayment = selectedPaymentMethod === 'pse' || selectedPaymentMethod === 'card';
+      const initialStatus = isInstantPayment ? 'Pagado' : 'Validación de Pago';
+
       const orderData = {
         orderNumber: orderId,
         userId: currentUser.uid,
@@ -110,7 +117,7 @@ const Checkout = () => {
           id: item.product.id,
           name: item.product.name,
           price: item.product.price,
-          cost: item.product.cost || (item.product.price * 0.6), // Fallback si no hay costo definido
+          cost: item.product.cost || (item.product.price * 0.6),
           quantity: item.quantity,
           category: item.product.category
         })),
@@ -119,45 +126,67 @@ const Checkout = () => {
         totalAmount: totalWithShipping,
         shippingInfo,
         paymentMethod: selectedPaymentMethod,
-        status: 'Recibido',
+        receiptUrl: shippingInfo.receiptUrl || '', // Nuevo campo para transferencia
+        status: initialStatus,
         createdAt: new Date().toISOString()
       };
 
       // 1. Guardar el pedido en Firestore
       await addDoc(collection(db, 'orders'), orderData);
 
-      // 2. Descontar Stock
-      for (const item of items) {
-        const productRef = doc(db, 'products', item.product.id);
-        const productSnap = await getDoc(productRef);
-        if (productSnap.exists()) {
-          const newStock = Math.max(0, (productSnap.data().stockQuantity || 0) - item.quantity);
-          await updateDoc(productRef, { stockQuantity: newStock });
+      // 2. Lógica condicionada al tipo de pago
+      if (isInstantPayment) {
+        // DESCONTAR STOCK INMEDIATAMENTE
+        for (const item of items) {
+          const productRef = doc(db, 'products', item.product.id);
+          const productSnap = await getDoc(productRef);
+          if (productSnap.exists()) {
+            const newStock = Math.max(0, (productSnap.data().stockQuantity || 0) - item.quantity);
+            await updateDoc(productRef, { stockQuantity: newStock });
+          }
         }
-      }
 
-      // 3. Disparar notificación por correo
-      await addDoc(collection(db, 'mail'), {
-        to: [currentUser.email, 'raulpte0211@gmail.com'],
-        message: {
-          subject: `Nuevo Pedido DÚO DREAMS: ${orderId}`,
-          html: `
-            <h1>¡Gracias por tu compra en DÚO DREAMS!</h1>
-            <p>Hola ${currentUser.firstName || 'Cliente'}, hemos recibido tu pedido <b>${orderId}</b>.</p>
-            <p>Total a pagar (con envío): <b>$${totalWithShipping.toLocaleString('es-CO')}</b></p>
-            <p>Estado actual: <b>Recibido</b></p>
-            <hr/>
-            <p>Pronto recibirás noticias sobre el despacho de tu pedido.</p>
-          `
-        }
-      });
+        // NOTIFICACIÓN DE ÉXITO INMEDIATA
+        await addDoc(collection(db, 'mail'), {
+          to: [currentUser.email, 'raulpte0211@gmail.com'],
+          message: {
+            subject: `¡Pago Confirmado! Pedido DÚO DREAMS: ${orderId}`,
+            html: `
+              <h1>¡Gracias por tu compra!</h1>
+              <p>Tu pago por <b>PSE</b> ha sido confirmado. El pedido <b>${orderId}</b> ya está en proceso.</p>
+              <p>Total: <b>$${totalWithShipping.toLocaleString('es-CO')}</b></p>
+            `
+          }
+        });
+      } else {
+        // NOTIFICACIÓN DE "ESPERA" PARA TRANSFERENCIA
+        await addDoc(collection(db, 'mail'), {
+          to: [currentUser.email],
+          message: {
+            subject: `Pedido en Validación: ${orderId}`,
+            html: `
+              <h1>Recibimos tu solicitud de pedido</h1>
+              <p>Estamos validando tu transferencia para el pedido <b>${orderId}</b>.</p>
+              <p>Una vez confirmemos el pago, recibirás un correo de confirmación y procesaremos tu envío.</p>
+            `
+          }
+        });
+        // Notificar al admin que hay algo que validar
+        await addDoc(collection(db, 'mail'), {
+          to: ['raulpte0211@gmail.com'],
+          message: {
+            subject: `NUEVA VALIDACIÓN PENDIENTE: ${orderId}`,
+            html: `<p>El cliente ${currentUser.email} ha subido un comprobante. Revisa el panel de control.</p>`
+          }
+        });
+      }
 
       // 4. Limpiar carrito y confirmar
       clearCart();
       setOrderConfirmed(true);
     } catch (error) {
       console.error("Error al procesar el pedido:", error);
-      alert("Hubo un error al procesar tu pedido. Por favor intenta de nuevo.");
+      alert("Hubo un error al procesar tu pedido.");
     } finally {
       setIsConfirming(false);
     }
@@ -319,31 +348,68 @@ const Checkout = () => {
                   <div className="h-12 bg-gray-100 rounded-xl"></div>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {paymentMethods.map(method => (
-                    <label 
-                      key={method.id}
-                      className={`flex items-start p-4 border rounded-xl cursor-pointer transition-all ${
-                        selectedPaymentMethod === method.id 
-                          ? 'border-brand-gold bg-blue-50/50' 
-                          : 'border-gray-200 hover:border-brand-gold/50'
+                  <div className="space-y-4">
+                    {/* PSE Visual Button */}
+                    <div 
+                      onClick={() => setSelectedPaymentMethod('pse')}
+                      className={`flex items-center justify-between p-4 border rounded-2xl cursor-pointer transition-all ${
+                        selectedPaymentMethod === 'pse' ? 'border-brand-gold bg-blue-50/50' : 'border-gray-100'
                       }`}
                     >
-                      <input 
-                        type="radio" 
-                        name="paymentMethod" 
-                        value={method.id}
-                        checked={selectedPaymentMethod === method.id}
-                        onChange={() => setSelectedPaymentMethod(method.id)}
-                        className="mt-1 text-brand-gold focus:ring-brand-gold"
-                      />
-                      <div className="ml-3">
-                        <span className="block font-bold text-slate-800">{method.name}</span>
-                        <span className="text-sm text-slate-500">{method.description}</span>
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-1 mr-3">
+                          <img src="https://www.pse.com.co/documents/d/pse/logo-pse" alt="PSE" className="w-full object-contain" />
+                        </div>
+                        <div>
+                          <span className="block font-bold text-slate-800 text-sm">PSE (Débito Bancario)</span>
+                          <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Confirmación Inmediata</span>
+                        </div>
                       </div>
-                    </label>
-                  ))}
-                </div>
+                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'pse' ? 'border-brand-gold' : 'border-gray-200'}`}>
+                        {selectedPaymentMethod === 'pse' && <div className="w-2.5 h-2.5 bg-brand-gold rounded-full"></div>}
+                      </div>
+                    </div>
+
+                    {/* Transferencia Bancaria */}
+                    <div 
+                      onClick={() => setSelectedPaymentMethod('transfer')}
+                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
+                        selectedPaymentMethod === 'transfer' ? 'border-brand-gold bg-blue-50/50' : 'border-gray-100'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center">
+                          <div className="w-10 h-10 bg-white rounded-lg border border-gray-100 flex items-center justify-center mr-3 text-brand-gold">
+                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                          </div>
+                          <div>
+                            <span className="block font-bold text-slate-800 text-sm">Transferencia Bancaria</span>
+                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Sujeto a Validación</span>
+                          </div>
+                        </div>
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'transfer' ? 'border-brand-gold' : 'border-gray-200'}`}>
+                          {selectedPaymentMethod === 'transfer' && <div className="w-2.5 h-2.5 bg-brand-gold rounded-full"></div>}
+                        </div>
+                      </div>
+
+                      {selectedPaymentMethod === 'transfer' && (
+                        <div className="space-y-3 animate-fade-in pl-1">
+                          <p className="text-[10px] text-slate-500 bg-white p-3 rounded-xl border border-dashed border-gray-200 leading-relaxed">
+                            Realiza tu transferencia a la cuenta <b>Ahorros Bancolombia #123-456789-01</b> a nombre de DÚO DREAMS. 
+                            Luego, pega el enlace del comprobante o número de transacción abajo.
+                          </p>
+                          <Input 
+                            id="receiptUrl"
+                            label="URL del Comprobante o # de Transacción"
+                            value={shippingInfo.receiptUrl || ''}
+                            onChange={handleInputChange}
+                            placeholder="Ej: https://imgur.com/foto-pago"
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
               )}
             </section>
           </div>

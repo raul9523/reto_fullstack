@@ -42,24 +42,68 @@ const AdminDashboard = () => {
     fetchAllOrders();
   }, [currentUser]);
 
+  const handleConfirmPayment = async (order) => {
+    setUpdatingId(order.id);
+    try {
+      // 1. Descontar Stock (ya que para transferencia no se hizo en el checkout)
+      for (const item of order.items) {
+        const productRef = doc(db, 'products', item.id);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const newStock = Math.max(0, (productSnap.data().stockQuantity || 0) - item.quantity);
+          await updateDoc(productRef, { stockQuantity: newStock });
+        }
+      }
+
+      // 2. Actualizar estado de la orden
+      const orderRef = doc(db, 'orders', order.id);
+      await updateDoc(orderRef, { status: 'Pagado' });
+      
+      setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'Pagado' } : o));
+
+      // 3. Notificación Final al Cliente
+      await addDoc(collection(db, 'mail'), {
+        to: [order.userEmail, ADMIN_EMAIL],
+        message: {
+          subject: `¡Pago Confirmado! Pedido DÚO DREAMS: ${order.orderNumber}`,
+          html: `
+            <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+              <h1 style="color: #c4a484;">¡Pago Validado con Éxito!</h1>
+              <p>Hola, hemos verificado tu transferencia para el pedido <b>${order.orderNumber}</b>.</p>
+              <p>Tu pedido ya está en proceso de despacho. ¡Muchas gracias por tu compra!</p>
+              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+              <p style="font-size: 12px; color: #94a3b8;">DÚO DREAMS - Tienda Oficial</p>
+            </div>
+          `
+        }
+      });
+
+      alert("¡Pago confirmado! Stock descontado y cliente notificado.");
+    } catch (error) {
+      console.error("Error al confirmar pago:", error);
+      alert("Error al confirmar el pago.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
+
   const handleUpdateStatus = async (orderId, newStatus, userEmail, orderNumber) => {
     setUpdatingId(orderId);
     try {
       const orderRef = doc(db, 'orders', orderId);
       await updateDoc(orderRef, { status: newStatus });
       
-      // Actualizar estado local
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
 
-      // Disparar correo de actualización de estado
       await addDoc(collection(db, 'mail'), {
         to: [userEmail],
         message: {
           subject: `Actualización de tu pedido DÚO DREAMS: ${orderNumber}`,
           html: `
-            <h1>¡Tu pedido tiene novedades!</h1>
-            <p>El estado de tu pedido <b>${orderNumber}</b> ha cambiado a: <b>${newStatus}</b>.</p>
-            <p>Gracias por confiar en DÚO DREAMS.</p>
+            <div style="font-family: sans-serif; padding: 20px;">
+              <h2 style="color: #c4a484;">Novedades en tu pedido</h2>
+              <p>El estado de tu pedido <b>${orderNumber}</b> ha cambiado a: <b style="text-transform: uppercase;">${newStatus}</b>.</p>
+            </div>
           `
         }
       });
@@ -160,6 +204,7 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4 font-bold text-brand-dark">${order.totalAmount.toLocaleString('es-CO')}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                          order.status === 'Validación de Pago' ? 'bg-red-100 text-red-600 animate-pulse' :
                           order.status === 'Recibido' ? 'bg-blue-100 text-blue-600' :
                           order.status === 'En Proceso' ? 'bg-amber-100 text-amber-600' :
                           order.status === 'Despachado' ? 'bg-purple-100 text-purple-600' :
@@ -167,23 +212,38 @@ const AdminDashboard = () => {
                         }`}>
                           {order.status}
                         </span>
+                        {order.receiptUrl && (
+                          <a href={order.receiptUrl} target="_blank" rel="noreferrer" className="block mt-2 text-[10px] text-blue-500 font-bold underline">
+                            Ver Comprobante ↗
+                          </a>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-1 flex-wrap">
-                          {['En Proceso', 'Despachado', 'Pagado'].map(status => (
+                          {order.status === 'Validación de Pago' ? (
                             <button
-                              key={status}
-                              disabled={order.status === status || updatingId === order.id}
-                              onClick={() => handleUpdateStatus(order.id, status, order.userEmail, order.orderNumber)}
-                              className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-all ${
-                                order.status === status 
-                                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                  : 'bg-brand-dark text-white hover:bg-brand-gold'
-                              }`}
+                              disabled={updatingId === order.id}
+                              onClick={() => handleConfirmPayment(order)}
+                              className="w-full bg-green-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-green-700 shadow-sm"
                             >
-                              {status === updatingId ? '...' : status}
+                              {updatingId === order.id ? 'Confirmando...' : '✅ Confirmar Pago'}
                             </button>
-                          ))}
+                          ) : (
+                            ['En Proceso', 'Despachado'].map(status => (
+                              <button
+                                key={status}
+                                disabled={order.status === status || updatingId === order.id}
+                                onClick={() => handleUpdateStatus(order.id, status, order.userEmail, order.orderNumber)}
+                                className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-all ${
+                                  order.status === status 
+                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                                    : 'bg-brand-dark text-white hover:bg-brand-gold'
+                                }`}
+                              >
+                                {status === updatingId ? '...' : status}
+                              </button>
+                            ))
+                          )}
                         </div>
                       </td>
                     </tr>
