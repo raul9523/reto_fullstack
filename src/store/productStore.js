@@ -1,58 +1,73 @@
 import { create } from 'zustand';
-import { products as mockProducts } from '../mockdata/products';
+import { collection, getDocs } from 'firebase/firestore';
+import { db } from '../firebase/firebase.config.js';
 
-const useProductStore = create((set) => ({
+const useProductStore = create((set, get) => ({
   // Estado inicial
-  products: mockProducts,
-  filteredProducts: mockProducts,
+  products: [],
+  filteredProducts: [],
   searchQuery: '',
   selectedCategory: null,
+  isLoading: false,
+  error: null,
 
-  // Acciones
-  setProducts: (newProducts) => set({ 
-    products: newProducts, 
-    filteredProducts: newProducts 
-  }),
-
-  setSearchQuery: (query) => set((state) => {
-    // Si la búsqueda está vacía, mostramos todos los productos (o los de la categoría seleccionada)
-    if (!query.trim()) {
-      const filtered = state.selectedCategory 
-        ? state.products.filter(p => p.categoryId === state.selectedCategory)
-        : state.products;
-        
-      return { searchQuery: query, filteredProducts: filtered };
+  // Acción para descargar los productos reales desde Firestore
+  fetchProducts: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const querySnapshot = await getDocs(collection(db, "products"));
+      const productsData = [];
+      querySnapshot.forEach((doc) => {
+        // Obtenemos los datos y mantenemos el ID del documento
+        productsData.push({ id: doc.id, ...doc.data() });
+      });
+      
+      set({ 
+        products: productsData, 
+        filteredProducts: productsData,
+        isLoading: false 
+      });
+      
+      // Aplicar filtros existentes por si se recargaron los datos mientras había una búsqueda
+      get().applyFilters();
+      
+    } catch (error) {
+      console.error("Error fetching products:", error);
+      set({ error: error.message, isLoading: false });
     }
+  },
 
-    // Filtramos ignorando mayúsculas y acentos
-    const lowerQuery = query.toLowerCase();
-    const filtered = state.products.filter((product) => {
-      const matchesSearch = product.name.toLowerCase().includes(lowerQuery) || 
-                           product.description.toLowerCase().includes(lowerQuery);
-      const matchesCategory = state.selectedCategory ? product.categoryId === state.selectedCategory : true;
+  // Acción interna para reaplicar filtros combinados (búsqueda y categoría)
+  applyFilters: () => set((state) => {
+    const { products, searchQuery, selectedCategory } = state;
+    const lowerQuery = searchQuery.toLowerCase().trim();
+
+    const filtered = products.filter((product) => {
+      const matchesSearch = lowerQuery
+        ? product.name.toLowerCase().includes(lowerQuery) || 
+          product.description.toLowerCase().includes(lowerQuery)
+        : true;
+        
+      const matchesCategory = selectedCategory 
+        ? product.categoryId === selectedCategory 
+        : true;
       
       return matchesSearch && matchesCategory;
     });
 
-    return { searchQuery: query, filteredProducts: filtered };
+    return { filteredProducts: filtered };
   }),
 
-  setSelectedCategory: (categoryId) => set((state) => {
-    const newCategory = categoryId;
-    
-    // Aplicamos los filtros combinados (categoría + búsqueda)
-    const filtered = state.products.filter((product) => {
-      const matchesCategory = newCategory ? product.categoryId === newCategory : true;
-      const matchesSearch = state.searchQuery 
-        ? product.name.toLowerCase().includes(state.searchQuery.toLowerCase()) || 
-          product.description.toLowerCase().includes(state.searchQuery.toLowerCase())
-        : true;
-        
-      return matchesCategory && matchesSearch;
-    });
+  // Acciones de interacción del usuario
+  setSearchQuery: (query) => {
+    set({ searchQuery: query });
+    get().applyFilters();
+  },
 
-    return { selectedCategory: newCategory, filteredProducts: filtered };
-  }),
+  setSelectedCategory: (categoryId) => {
+    set({ selectedCategory: categoryId });
+    get().applyFilters();
+  },
 }));
 
 export default useProductStore;
