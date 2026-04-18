@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { auth, db } from '../firebase/firebase.config';
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export const useUserStore = create(
@@ -76,6 +76,18 @@ export const useUserStore = create(
         try {
           await signOut(auth);
           set({ currentUser: null, isLoading: false });
+        } catch (error) {
+          set({ error: error.message, isLoading: false });
+          throw error;
+        }
+      },
+
+      // Recuperar contraseña
+      resetPassword: async (email) => {
+        set({ isLoading: true, error: null });
+        try {
+          await sendPasswordResetEmail(auth, email);
+          set({ isLoading: false });
         } catch (error) {
           set({ error: error.message, isLoading: false });
           throw error;

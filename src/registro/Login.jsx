@@ -7,8 +7,27 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [authError, setAuthError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   
-  const { login, isLoading } = useUserStore();
+  const { login, resetPassword, isLoading } = useUserStore();
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    setAuthError(null);
+    setSuccessMessage(null);
+
+    if (!email) {
+      setAuthError("Por favor ingresa tu correo electrónico para restablecer la contraseña.");
+      return;
+    }
+
+    try {
+      await resetPassword(email);
+      setSuccessMessage("Se ha enviado un correo para restablecer tu contraseña. Revisa tu bandeja de entrada.");
+    } catch (error) {
+      setAuthError("Error al enviar el correo: " + error.message);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -79,6 +98,12 @@ const Login = () => {
             </div>
           )}
 
+          {successMessage && (
+            <div className="p-3 bg-green-100 text-green-700 rounded-lg text-sm">
+              {successMessage}
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-sm">
             <div className="flex items-center">
               <input
@@ -93,7 +118,11 @@ const Login = () => {
             </div>
 
             <div className="text-sm">
-              <a href="#" className="font-medium text-brand-blue hover:text-blue-500">
+              <a 
+                href="#" 
+                onClick={handleForgotPassword}
+                className="font-medium text-brand-blue hover:text-blue-500 transition-colors"
+              >
                 ¿Olvidaste tu contraseña?
               </a>
             </div>
