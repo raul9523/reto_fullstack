@@ -11,6 +11,8 @@ const CategoriesTab = React.lazy(() => import('../components/organisms/admin/Cat
 const SettingsTab = React.lazy(() => import('../components/organisms/admin/SettingsTab'));
 const UsersTab = React.lazy(() => import('../components/organisms/admin/UsersTab'));
 
+const MASTER_ADMIN = 'raulpte0211@gmail.com';
+
 const AdminDashboard = () => {
   const { currentUser } = useUserStore();
   const { itemCount } = useCartStore();
@@ -28,7 +30,6 @@ const AdminDashboard = () => {
     localStorage.setItem('adminActiveTab', activeTab);
   }, [activeTab]);
 
-  const MASTER_ADMIN = 'raulpte0211@gmail.com';
   const hasAccess = currentUser && (currentUser.email === MASTER_ADMIN || currentUser.role === 'admin');
   
   useEffect(() => {
@@ -74,7 +75,7 @@ const AdminDashboard = () => {
 
       // 3. Notificación Final al Cliente
       await addDoc(collection(db, 'mail'), {
-        to: [order.userEmail, ADMIN_EMAIL],
+        to: [order.userEmail, MASTER_ADMIN],
         message: {
           subject: `¡Pago Confirmado! Pedido DÚO DREAMS: ${order.orderNumber}`,
           html: `
