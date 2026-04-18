@@ -45,9 +45,12 @@ const useProductStore = create((set, get) => ({
       querySnapshot.forEach((doc) => {
         allProducts.push({ id: doc.id, ...doc.data() });
       });
+
+      // Filtrar por activos para la tienda
+      const activeProducts = allProducts.filter(p => p.isActive !== false);
       
       // Ordenar: Promociones primero
-      const sortedProducts = allProducts.sort((a, b) => {
+      const sortedProducts = activeProducts.sort((a, b) => {
         if (a.isPromo && !b.isPromo) return -1;
         if (!a.isPromo && b.isPromo) return 1;
         return 0;

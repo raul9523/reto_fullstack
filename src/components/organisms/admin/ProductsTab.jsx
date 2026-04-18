@@ -16,10 +16,11 @@ const ProductsTab = () => {
     price: 0,
     cost: 0,
     stockQuantity: 0,
-    category: 'Pijamas',
+    category: '',
     imageUrl: '',
     discount: 0,
-    isPromo: false
+    isPromo: false,
+    isActive: true
   });
 
   const [massDiscount, setMassDiscount] = useState({ category: 'all', percentage: 0 });
@@ -31,7 +32,7 @@ const ProductsTab = () => {
     pSnap.forEach(doc => ps.push({ id: doc.id, ...doc.data() }));
     setProducts(ps);
 
-    const cSnap = await getDocs(query(collection(db, 'categories'), orderBy('order', 'asc')));
+    const cSnap = await getDocs(collection(db, 'categories'));
     const cs = [];
     cSnap.forEach(doc => cs.push({ id: doc.id, ...doc.data() }));
     setCategories(cs);
@@ -75,6 +76,44 @@ const ProductsTab = () => {
     }
   };
 
+  const handleDelete = async (product) => {
+    // Verificar ventas en la colección 'orders'
+    setIsLoading(true);
+    try {
+      const ordersSnap = await getDocs(collection(db, 'orders'));
+      let hasSales = false;
+      
+      ordersSnap.forEach(docSnap => {
+        const orderData = docSnap.data();
+        const items = orderData.items || [];
+        if (items.some(item => item.id === product.id)) {
+          hasSales = true;
+        }
+      });
+
+      if (hasSales) {
+        if (confirm(`El producto "${product.name}" ya tiene ventas registradas y no puede eliminarse. ¿Deseas inactivarlo para que no aparezca en la tienda?`)) {
+          await updateDoc(doc(db, 'products', product.id), { isActive: false });
+          fetchData();
+        }
+      } else {
+        if (confirm(`¿Estás seguro de ELIMINAR definitivamente el producto "${product.name}"?`)) {
+          await deleteDoc(doc(db, 'products', product.id));
+          fetchData();
+        }
+      }
+    } catch (e) {
+      alert("Error al verificar ventas: " + e.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleActive = async (product) => {
+    await updateDoc(doc(db, 'products', product.id), { isActive: !product.isActive });
+    fetchData();
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -88,7 +127,8 @@ const ProductsTab = () => {
         category: formData.category || '', // Permitir vacío
         imageUrl: formData.imageUrl || '',
         discount: Number(formData.discount) || 0,
-        isPromo: Boolean(formData.isPromo)
+        isPromo: Boolean(formData.isPromo),
+        isActive: formData.isActive !== false
       };
 
       if (editingProduct) {
@@ -100,7 +140,7 @@ const ProductsTab = () => {
         });
       }
       setFormData({
-        name: '', description: '', price: 0, cost: 0, stockQuantity: 0, category: '', imageUrl: '', discount: 0, isPromo: false
+        name: '', description: '', price: 0, cost: 0, stockQuantity: 0, category: '', imageUrl: '', discount: 0, isPromo: false, isActive: true
       });
       setEditingProduct(null);
       fetchData();
@@ -122,7 +162,8 @@ const ProductsTab = () => {
       category: product.category || '',
       imageUrl: product.imageUrl || '',
       discount: product.discount || 0,
-      isPromo: product.isPromo || false
+      isPromo: product.isPromo || false,
+      isActive: product.isActive !== false
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -237,6 +278,7 @@ const ProductsTab = () => {
             <tr>
               <th className="px-6 py-4">Producto</th>
               <th className="px-6 py-4">Categoría</th>
+              <th className="px-6 py-4">Estado</th>
               <th className="px-6 py-4">Venta / Costo</th>
               <th className="px-6 py-4">Stock</th>
               <th className="px-6 py-4 text-right">Acciones</th>
@@ -244,24 +286,38 @@ const ProductsTab = () => {
           </thead>
           <tbody className="divide-y divide-gray-50">
             {products.map(p => (
-              <tr key={p.id} className="hover:bg-gray-50/50 transition-colors">
+              <tr key={p.id} className={`hover:bg-gray-50/50 transition-colors ${!p.isActive ? 'opacity-60 grayscale' : ''}`}>
                 <td className="px-6 py-4 flex items-center gap-3">
                   <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
-                  <span className="font-bold text-brand-dark">{p.name}</span>
+                  <div>
+                    <span className="font-bold text-brand-dark block">{p.name}</span>
+                    {p.isPromo && <span className="text-[8px] bg-brand-gold text-white px-1.5 py-0.5 rounded uppercase font-black">Promo</span>}
+                  </div>
                 </td>
-                <td className="px-6 py-4 text-slate-500">{p.category}</td>
+                <td className="px-6 py-4 text-slate-500">{p.category || 'Sin Categoría'}</td>
+                <td className="px-6 py-4">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${p.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
+                    {p.isActive ? 'Activo' : 'Inactivo'}
+                  </span>
+                </td>
                 <td className="px-6 py-4">
                   <div className="font-bold text-brand-dark">${p.price.toLocaleString('es-CO')}</div>
-                  <div className="text-[10px] text-slate-400">Costo: ${p.cost?.toLocaleString('es-CO')}</div>
+                  {p.discount > 0 && <div className="text-[10px] text-brand-gold font-bold">-{p.discount}%</div>}
                 </td>
                 <td className="px-6 py-4">
                   <span className={`font-bold ${p.stockQuantity <= 0 ? 'text-red-500' : 'text-brand-dark'}`}>
                     {p.stockQuantity}
                   </span>
                 </td>
-                <td className="px-6 py-4 text-right space-x-3">
-                  <button onClick={() => handleStockAdd(p, 10)} className="text-[10px] bg-green-50 text-green-600 px-2 py-1 rounded-md hover:bg-green-100 font-bold">+10 Stock</button>
-                  <button onClick={() => handleEdit(p)} className="text-brand-gold font-bold hover:underline">Editar</button>
+                <td className="px-6 py-4 text-right space-x-2">
+                  <button onClick={() => handleEdit(p)} className="text-xs text-brand-gold font-bold hover:underline">Editar</button>
+                  <button 
+                    onClick={() => handleToggleActive(p)} 
+                    className={`text-xs font-bold hover:underline ${p.isActive ? 'text-slate-400' : 'text-green-500'}`}
+                  >
+                    {p.isActive ? 'Inactivar' : 'Activar'}
+                  </button>
+                  <button onClick={() => handleDelete(p)} className="text-xs text-red-500 font-bold hover:underline">Borrar</button>
                 </td>
               </tr>
             ))}
