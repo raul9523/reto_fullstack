@@ -1,0 +1,113 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This is seed data intended to be run by an authenticated user.") {
+  user_insertMany(data: [
+    {
+      id: "c9c2d1b0-9f1c-4b5a-8b8a-1a2a3b4c5d6e",
+      email: "alice@example.com",
+      passwordHash: "hashedpassword1",
+      createdAt: "2023-01-01T00:00:00Z",
+      displayName: "Alice Smith",
+      shippingAddress: "123 Main St, Anytown, USA",
+      billingAddress: "123 Main St, Anytown, USA",
+      phoneNumber: "+15551234567"
+    },
+    {
+      id: "d0d3e2c1-0g2d-5c6b-9c9b-2b3c4d5e6f7a",
+      email: "bob@example.com",
+      passwordHash: "hashedpassword2",
+      createdAt: "2023-01-02T00:00:00Z",
+      displayName: "Bob Johnson",
+      shippingAddress: "456 Oak Ave, Otherville, USA",
+      billingAddress: "456 Oak Ave, Otherville, USA",
+      phoneNumber: "+15559876543"
+    }
+  ])
+  category_insertMany(data: [
+    {
+      id: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+      name: "Electronics",
+      createdAt: "2023-01-01T00:00:00Z",
+      description: "Electronic gadgets and devices"
+    },
+    {
+      id: "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e",
+      name: "Books",
+      createdAt: "2023-01-02T00:00:00Z",
+      description: "Books of all genres"
+    }
+  ])
+  product_insertMany(data: [
+    {
+      id: "p1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c",
+      name: "Smartphone X",
+      price: 699.99,
+      description: "A powerful smartphone with advanced features.",
+      stockQuantity: 100,
+      createdAt: "2023-01-03T00:00:00Z",
+      imageUrl: "https://example.com/smartphone_x.jpg",
+      weight: 0.2,
+      dimensions: "15x7x0.8 cm"
+    },
+    {
+      id: "p2b3c4d5-e6f7-8a9b-0c1d-2e3f4a5b6c7d",
+      name: "The Great Novel",
+      price: 15.00,
+      description: "An epic tale of adventure and mystery.",
+      stockQuantity: 500,
+      createdAt: "2023-01-04T00:00:00Z",
+      imageUrl: "https://example.com/great_novel.jpg",
+      weight: 0.5,
+      dimensions: "20x15x3 cm"
+    }
+  ])
+  productCategory_insertMany(data: [
+    {
+      productId: "p1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c",
+      categoryId: "a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d"
+    },
+    {
+      productId: "p2b3c4d5-e6f7-8a9b-0c1d-2e3f4a5b6c7d",
+      categoryId: "b2c3d4e5-f6a7-8b9c-0d1e-2f3a4b5c6d7e"
+    }
+  ])
+  cart_insertMany(data: [
+    {
+      id: "ca1b2c3d-e4f5-6a7b-8c9d-0e1f2a3b4c5d",
+      userId: "c9c2d1b0-9f1c-4b5a-8b8a-1a2a3b4c5d6e",
+      createdAt: "2023-01-05T00:00:00Z",
+      updatedAt: "2023-01-05T00:00:00Z"
+    }
+  ])
+  cartItem_insertMany(data: [
+    {
+      cartId: "ca1b2c3d-e4f5-6a7b-8c9d-0e1f2a3b4c5d",
+      productId: "p1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c",
+      quantity: 1
+    }
+  ])
+  order_insertMany(data: [
+    {
+      id: "o1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6d",
+      userId: "c9c2d1b0-9f1c-4b5a-8b8a-1a2a3b4c5d6e",
+      orderDate: "2023-01-06T00:00:00Z",
+      totalAmount: 714.99,
+      status: "Processing",
+      createdAt: "2023-01-06T00:00:00Z",
+      shippingAddressSnapshot: "123 Main St, Anytown, USA",
+      billingAddressSnapshot: "123 Main St, Anytown, USA"
+    }
+  ])
+  orderItem_insertMany(data: [
+    {
+      orderId: "o1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6d",
+      productId: "p1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6c",
+      quantity: 1,
+      priceAtTimeOfPurchase: 699.99
+    },
+    {
+      orderId: "o1a2b3c4-d5e6-7f8a-9b0c-1d2e3f4a5b6d",
+      productId: "p2b3c4d5-e6f7-8a9b-0c1d-2e3f4a5b6c7d",
+      quantity: 1,
+      priceAtTimeOfPurchase: 15.00
+    }
+  ])
+}

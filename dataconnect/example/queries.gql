@@ -1,0 +1,55 @@
+mutation CreateProduct($name: String!, $price: Float!, $description: String!, $stockQuantity: Int!, $imageUrl: String, $weight: Float, $dimensions: String) @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  product_insert(data: {
+    name: $name,
+    price: $price,
+    description: $description,
+    stockQuantity: $stockQuantity,
+    createdAt_expr: "request.time",
+    imageUrl: $imageUrl,
+    weight: $weight,
+    dimensions: $dimensions
+  })
+}
+
+query GetProductDetails($id: UUID!) @auth(level: PUBLIC, insecureReason: "This operation is safe to expose to the public") {
+  product(id: $id) {
+    id
+    name
+    description
+    price
+    stockQuantity
+    imageUrl
+    weight
+    dimensions
+    createdAt
+    categories_via_ProductCategory {
+      id
+      name
+    }
+  }
+}
+
+mutation AddItemToCart($productId: UUID!, $quantity: Int!) @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  cartItem_insert(data: {
+    productId: $productId,
+    cartId_expr: "auth.uid",
+    quantity: $quantity
+  })
+}
+
+query GetUserOrders @auth(level: USER, insecureReason: "This operation is safe to expose to all logged in users.") {
+  orders(where: {userId: {eq_expr: "auth.uid"}}, orderBy: [{orderDate: DESC}]) {
+    id
+    orderDate
+    totalAmount
+    status
+    orderItems_on_order {
+      quantity
+      priceAtTimeOfPurchase
+      product {
+        name
+        imageUrl
+      }
+    }
+  }
+}
