@@ -108,7 +108,7 @@ const ShoppingCart = ({ isOpen, onClose }) => {
               </span>
             </div>
             
-            <Button className="w-full py-3 text-lg font-semibold" onClick={() => alert("Checkout funcionality coming soon!")}>
+            <Button className="w-full py-3 text-lg font-semibold" onClick={() => window.location.href = '/checkout'}>
               Proceder al Pago
             </Button>
             
