@@ -58,8 +58,8 @@ const Login = () => {
         
         <div className="text-center">
           <div className="flex justify-center items-center mb-4 cursor-pointer" onClick={() => window.location.href = '/'}>
-            <span className="text-3xl font-bold text-brand-blue">DNA</span>
-            <span className="text-3xl font-bold text-slate-800">Store</span>
+            <span className="text-3xl font-bold text-brand-blue">DÚO</span>
+            <span className="text-3xl font-bold text-slate-800 ml-1">DREAMS</span>
           </div>
           <h2 className="text-2xl font-extrabold text-slate-800">
             Bienvenido de nuevo

@@ -22,7 +22,7 @@ const MainLayout = ({ children, user, onLoginClick, onLogoutClick, cartItemCount
 
       <footer className="bg-white border-t border-gray-200 mt-auto py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-slate-500">
-          <p>&copy; {new Date().getFullYear()} DNA Store. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} DÚO DREAMS. All rights reserved.</p>
         </div>
       </footer>
 

@@ -16,8 +16,8 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
           
           {/* Logo / Brand */}
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
-            <span className="text-2xl font-bold text-brand-blue">DNA</span>
-            <span className="text-2xl font-bold text-slate-800">Store</span>
+            <span className="text-2xl font-bold text-brand-blue">DÚO</span>
+            <span className="text-2xl font-bold text-slate-800 ml-1">DREAMS</span>
           </div>
 
           {/* Search Bar - Desktop */}

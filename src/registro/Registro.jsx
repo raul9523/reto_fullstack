@@ -161,7 +161,7 @@ const Registro = () => {
             Crear una cuenta
           </h2>
           <p className="mt-2 text-center text-sm text-slate-500">
-            Únete a DNA Store
+            Únete a DÚO DREAMS
           </p>
         </div>
         
