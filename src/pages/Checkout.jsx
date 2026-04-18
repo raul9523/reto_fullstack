@@ -349,25 +349,43 @@ const Checkout = () => {
                 </div>
               ) : (
                   <div className="space-y-4">
-                    {/* PSE Visual Button */}
+                    {/* Botón Oficial PSE */}
                     <div 
                       onClick={() => setSelectedPaymentMethod('pse')}
-                      className={`flex items-center justify-between p-4 border rounded-2xl cursor-pointer transition-all ${
-                        selectedPaymentMethod === 'pse' ? 'border-brand-gold bg-blue-50/50' : 'border-gray-100'
+                      className={`relative flex items-center justify-between p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                        selectedPaymentMethod === 'pse' 
+                          ? 'border-blue-600 bg-blue-50 shadow-md' 
+                          : 'border-gray-100 hover:border-gray-200 bg-white'
                       }`}
                     >
-                      <div className="flex items-center">
-                        <div className="w-10 h-10 bg-white rounded-lg border border-gray-100 flex items-center justify-center p-1 mr-3">
-                          <img src="https://www.pse.com.co/documents/d/pse/logo-pse" alt="PSE" className="w-full object-contain" />
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 border border-gray-100">
+                          <img 
+                            src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Logo_PSE.png" 
+                            alt="PSE" 
+                            className="w-full h-full object-contain"
+                          />
                         </div>
                         <div>
-                          <span className="block font-bold text-slate-800 text-sm">PSE (Débito Bancario)</span>
-                          <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Confirmación Inmediata</span>
+                          <span className="block font-black text-blue-900 text-sm italic tracking-tighter">PAGOS SEGUROS EN LÍNEA</span>
+                          <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded-full">Oficial PSE</span>
                         </div>
                       </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'pse' ? 'border-brand-gold' : 'border-gray-200'}`}>
-                        {selectedPaymentMethod === 'pse' && <div className="w-2.5 h-2.5 bg-brand-gold rounded-full"></div>}
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+                        selectedPaymentMethod === 'pse' ? 'border-blue-600 bg-blue-600' : 'border-gray-200'
+                      }`}>
+                        {selectedPaymentMethod === 'pse' && (
+                          <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
                       </div>
+                      
+                      {selectedPaymentMethod === 'pse' && (
+                        <div className="absolute -top-3 -right-2 bg-blue-600 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce uppercase">
+                          Recomendado
+                        </div>
+                      )}
                     </div>
 
                     {/* Transferencia Bancaria */}
