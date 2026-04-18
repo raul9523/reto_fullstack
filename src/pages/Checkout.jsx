@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
 import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
@@ -58,14 +58,57 @@ const Checkout = () => {
     setShippingInfo(prev => ({ ...prev, [id]: value }));
   };
 
-  const handleConfirmOrder = () => {
+  const handleConfirmOrder = async () => {
+    if (items.length === 0) return;
+    
     setIsConfirming(true);
-    // Simulamos una demora de red
-    setTimeout(() => {
+    try {
+      const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+      const orderData = {
+        orderNumber: orderId,
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        items: items.map(item => ({
+          id: item.product.id,
+          name: item.product.name,
+          price: item.product.price,
+          quantity: item.quantity
+        })),
+        totalAmount,
+        shippingInfo,
+        paymentMethod: selectedPaymentMethod,
+        status: 'Recibido',
+        createdAt: new Date().toISOString()
+      };
+
+      // 1. Guardar el pedido en Firestore
+      await addDoc(collection(db, 'orders'), orderData);
+
+      // 2. Disparar notificación por correo (Para la extensión "Trigger Email")
+      await addDoc(collection(db, 'mail'), {
+        to: [currentUser.email, 'raulpte0211@gmail.com'],
+        message: {
+          subject: `Nuevo Pedido DÚO DREAMS: ${orderId}`,
+          html: `
+            <h1>¡Gracias por tu compra en DÚO DREAMS!</h1>
+            <p>Hola ${currentUser.firstName || 'Cliente'}, hemos recibido tu pedido <b>${orderId}</b>.</p>
+            <p>Total a pagar: <b>$${totalAmount.toLocaleString('es-CO')}</b></p>
+            <p>Estado actual: <b>Recibido</b></p>
+            <hr/>
+            <p>Pronto recibirás noticias sobre el despacho de tu pedido.</p>
+          `
+        }
+      });
+
+      // 3. Limpiar carrito y confirmar
       clearCart();
       setOrderConfirmed(true);
+    } catch (error) {
+      console.error("Error al procesar el pedido:", error);
+      alert("Hubo un error al procesar tu pedido. Por favor intenta de nuevo.");
+    } finally {
       setIsConfirming(false);
-    }, 2000);
+    }
   };
 
   if (!currentUser) {
@@ -115,7 +158,7 @@ const Checkout = () => {
             {/* Información de Envío */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                <span className="w-8 h-8 bg-brand-blue/10 text-brand-blue rounded-full flex items-center justify-center mr-3 text-sm">1</span>
+                <span className="w-8 h-8 bg-brand-gold/10 text-brand-gold rounded-full flex items-center justify-center mr-3 text-sm">1</span>
                 Información de Envío
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -150,7 +193,7 @@ const Checkout = () => {
             {/* Método de Pago */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
               <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                <span className="w-8 h-8 bg-brand-blue/10 text-brand-blue rounded-full flex items-center justify-center mr-3 text-sm">2</span>
+                <span className="w-8 h-8 bg-brand-gold/10 text-brand-gold rounded-full flex items-center justify-center mr-3 text-sm">2</span>
                 Método de Pago
               </h2>
               {isLoading ? (
@@ -165,8 +208,8 @@ const Checkout = () => {
                       key={method.id}
                       className={`flex items-start p-4 border rounded-xl cursor-pointer transition-all ${
                         selectedPaymentMethod === method.id 
-                          ? 'border-brand-blue bg-blue-50/50' 
-                          : 'border-gray-200 hover:border-brand-blue/50'
+                          ? 'border-brand-gold bg-blue-50/50' 
+                          : 'border-gray-200 hover:border-brand-gold/50'
                       }`}
                     >
                       <input 
@@ -175,7 +218,7 @@ const Checkout = () => {
                         value={method.id}
                         checked={selectedPaymentMethod === method.id}
                         onChange={() => setSelectedPaymentMethod(method.id)}
-                        className="mt-1 text-brand-blue focus:ring-brand-blue"
+                        className="mt-1 text-brand-gold focus:ring-brand-gold"
                       />
                       <div className="ml-3">
                         <span className="block font-bold text-slate-800">{method.name}</span>

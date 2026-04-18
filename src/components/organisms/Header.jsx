@@ -63,10 +63,11 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             <div className="hidden md:flex items-center space-x-3">
               {currentUser ? (
                 <>
-                  <div className="text-sm">
+                  <div className="text-sm flex flex-col items-end">
                     <p className="text-slate-800 font-medium whitespace-nowrap">
                       Hola, {currentUser.firstName || currentUser.email.split('@')[0]}
                     </p>
+                    <a href="/mis-pedidos" className="text-[10px] text-brand-gold hover:underline font-bold uppercase tracking-widest">Mis Pedidos</a>
                   </div>
                   <Button variant="secondary" onClick={logout} className="px-3 py-1.5 text-sm">
                     Cerrar Sesión
@@ -146,7 +147,12 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             <div className="pt-4 border-t border-gray-50 space-y-3">
               <p className="text-slate-500 text-xs uppercase tracking-wider font-bold px-2">Navegación</p>
               <a href="/" className="block px-2 py-2 text-slate-700 hover:text-brand-gold font-medium">Inicio</a>
-              <a href="/checkout" className="block px-2 py-2 text-slate-700 hover:text-brand-gold font-medium">Mi Pedido</a>
+              {currentUser && (
+                <a href="/mis-pedidos" className="block px-2 py-2 text-slate-700 hover:text-brand-gold font-medium">Mis Pedidos</a>
+              )}
+              {currentUser?.email === 'raulpte0211@gmail.com' && (
+                <a href="/admin" className="block px-2 py-2 text-brand-gold hover:text-brand-dark font-bold">Panel Admin</a>
+              )}
             </div>
           </div>
         </div>

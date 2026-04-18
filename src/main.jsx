@@ -5,6 +5,8 @@ import Home from './pages/Home.jsx';
 import Registro from './registro/Registro.jsx';
 import Login from './registro/Login.jsx';
 import Checkout from './pages/Checkout.jsx';
+import UserOrders from './pages/UserOrders.jsx';
+import AdminDashboard from './pages/AdminDashboard.jsx';
 import { useUserStore } from './store/userStore';
 
 // Router temporal ultra simple
@@ -26,6 +28,14 @@ const App = () => {
   
   if (window.location.pathname === '/checkout') {
     return <Checkout />;
+  }
+
+  if (window.location.pathname === '/mis-pedidos') {
+    return <UserOrders />;
+  }
+
+  if (window.location.pathname === '/admin') {
+    return <AdminDashboard />;
   }
 
   return <Home />;
