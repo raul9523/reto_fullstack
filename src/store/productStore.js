@@ -16,11 +16,15 @@ const useProductStore = create((set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const querySnapshot = await getDocs(collection(db, "products"));
-      const productsData = [];
+      const allProducts = [];
       querySnapshot.forEach((doc) => {
-        // Obtenemos los datos y mantenemos el ID del documento
-        productsData.push({ id: doc.id, ...doc.data() });
+        allProducts.push({ id: doc.id, ...doc.data() });
       });
+      
+      // Filtrar solo las categorías requeridas para DÚO DREAMS
+      const productsData = allProducts.filter(p => 
+        p.category === 'Accesorios' || p.category === 'Pijamas'
+      );
       
       set({ 
         products: productsData, 

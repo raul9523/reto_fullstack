@@ -13,8 +13,8 @@ const Button = ({
   const baseStyles = 'btn-dna'; // Uses the custom Tailwind class defined in main.css
   
   const variants = {
-    primary: 'bg-brand-blue text-white hover:brightness-110 shadow-dna',
-    secondary: 'bg-transparent text-brand-blue border-2 border-brand-blue hover:bg-blue-50',
+    primary: 'bg-brand-dark text-white hover:bg-brand-gold shadow-lg',
+    secondary: 'bg-transparent text-brand-dark border-2 border-brand-dark hover:bg-brand-dark hover:text-white',
     danger: 'bg-red-500 text-white hover:bg-red-600',
   };
 

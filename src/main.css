@@ -1,28 +1,50 @@
 @import "tailwindcss";
 
 @theme {
-  /* Definición de colores del ADN */
-  --color-brand-blue: #4D61FF;
-  --color-brand-dark: #32325d;
-  --color-brand-muted: #8898aa;
-  --color-brand-border: #dee2e6;
+  /* Paleta DÚO DREAMS: Rose Gold y Negro Elegante */
+  --color-brand-gold: #B76E79; /* Rose Gold */
+  --color-brand-dark: #1A1A1A; /* Negro Elegante */
+  --color-brand-muted: #717171;
+  --color-brand-light: #FDFBFB;
+  --color-brand-border: #E5E5E5;
   
-  /* Ajustes de radio y sombras para el estilo moderno de la imagen */
-  --radius-dna: 0.5rem;
-  --shadow-dna: 0 4px 11px rgba(77, 97, 255, 0.35);
+  /* Radios y Sombras Soft */
+  --radius-dna: 0.75rem;
+  --shadow-dna: 0 10px 25px -5px rgba(183, 110, 121, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
 }
 
-/* 2. Componentes base con @variant o clases de capa */
+@layer base {
+  body {
+    @apply bg-brand-light text-brand-dark antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
 @layer components {
   .input-dna {
-    @apply w-full border-b border-brand-border py-2 text-brand-dark 
-           outline-none transition-all duration-200 
-           focus:border-brand-blue placeholder:text-brand-muted/50;
+    @apply w-full border-b border-brand-border py-3 text-brand-dark 
+           bg-transparent outline-none transition-all duration-300 
+           focus:border-brand-gold placeholder:text-brand-muted/40;
   }
 
   .btn-dna {
-    @apply flex items-center justify-center gap-2 bg-brand-blue text-white 
-           px-8 py-3 rounded-dna font-semibold transition-all 
-           hover:brightness-110 hover:shadow-dna active:scale-95;
+    @apply flex items-center justify-center gap-2 bg-brand-dark text-white 
+           px-8 py-3 rounded-full font-medium transition-all duration-300
+           hover:bg-brand-gold hover:shadow-dna active:scale-95;
   }
+
+  .card-dna {
+    @apply bg-white rounded-2xl overflow-hidden transition-all duration-500
+           hover:shadow-xl hover:-translate-y-1 border border-gray-50;
+  }
+}
+
+/* Animaciones personalizadas */
+@keyframes fade-in-up {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
 }

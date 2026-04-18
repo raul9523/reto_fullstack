@@ -16,7 +16,7 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
           
           {/* Logo / Brand */}
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
-            <span className="text-2xl font-bold text-brand-blue">DÚO</span>
+            <span className="text-2xl font-bold text-brand-gold">DÚO</span>
             <span className="text-2xl font-bold text-slate-800 ml-1">DREAMS</span>
           </div>
 
@@ -28,7 +28,7 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
                 placeholder="Buscar productos..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-gray-50 border border-gray-200 rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all"
+                className="w-full bg-gray-50 border border-gray-200 rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent transition-all"
               />
               <svg 
                 className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" 
@@ -46,7 +46,7 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             
             {/* Cart Icon */}
             <div 
-              className="relative cursor-pointer text-slate-600 hover:text-brand-blue transition-colors p-2"
+              className="relative cursor-pointer text-slate-600 hover:text-brand-gold transition-colors p-2"
               onClick={onCartClick}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -83,7 +83,7 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             <div className="md:hidden flex items-center">
               <button 
                 onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="text-slate-600 hover:text-brand-blue focus:outline-none p-2"
+                className="text-slate-600 hover:text-brand-gold focus:outline-none p-2"
               >
                 <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   {isMenuOpen ? (
@@ -106,7 +106,7 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
               placeholder="Buscar productos..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all text-sm"
+              className="w-full bg-gray-50 border border-gray-200 rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-gold focus:border-transparent transition-all text-sm"
             />
             <svg 
               className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" 
@@ -145,8 +145,8 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             
             <div className="pt-4 border-t border-gray-50 space-y-3">
               <p className="text-slate-500 text-xs uppercase tracking-wider font-bold px-2">Navegación</p>
-              <a href="/" className="block px-2 py-2 text-slate-700 hover:text-brand-blue font-medium">Inicio</a>
-              <a href="/checkout" className="block px-2 py-2 text-slate-700 hover:text-brand-blue font-medium">Mi Pedido</a>
+              <a href="/" className="block px-2 py-2 text-slate-700 hover:text-brand-gold font-medium">Inicio</a>
+              <a href="/checkout" className="block px-2 py-2 text-slate-700 hover:text-brand-gold font-medium">Mi Pedido</a>
             </div>
           </div>
         </div>
