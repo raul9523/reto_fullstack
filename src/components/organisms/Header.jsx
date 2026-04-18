@@ -67,14 +67,27 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
                     <p className="text-slate-800 font-medium whitespace-nowrap">
                       Hola, {currentUser.firstName || currentUser.email.split('@')[0]}
                     </p>
-                    <a href="/mis-pedidos" className="text-[10px] text-brand-gold hover:underline font-bold uppercase tracking-widest">Mis Pedidos</a>
+                    <div className="flex gap-3 items-center mt-1">
+                      {(currentUser.email.toLowerCase() === 'raulpte0211@gmail.com' || currentUser.role === 'admin') && (
+                        <a 
+                          href="/admin" 
+                          className="bg-brand-gold text-white text-[9px] px-2 py-0.5 rounded-full font-black uppercase tracking-tighter hover:bg-brand-dark transition-colors shadow-sm"
+                        >
+                          Panel Admin
+                        </a>
+                      )}
+                      <a href="/mis-pedidos" className="text-[10px] text-slate-400 hover:text-brand-gold font-bold uppercase tracking-widest transition-colors">Mis Pedidos</a>
+                    </div>
                   </div>
-                  <Button variant="secondary" onClick={logout} className="px-3 py-1.5 text-sm">
-                    Cerrar Sesión
-                  </Button>
+                  <button 
+                    onClick={logout}
+                    className="text-[10px] font-bold text-red-400 hover:text-red-600 uppercase tracking-widest border border-red-100 px-3 py-1.5 rounded-xl hover:bg-red-50 transition-all"
+                  >
+                    Salir
+                  </button>
                 </>
               ) : (
-                <Button variant="primary" onClick={() => window.location.href = '/login'} className="px-4 py-2 text-sm">
+                <Button variant="primary" onClick={() => window.location.href = '/login'} className="px-4 py-2 text-sm font-bold">
                   Iniciar Sesión
                 </Button>
               )}
@@ -150,7 +163,7 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
               {currentUser && (
                 <a href="/mis-pedidos" className="block px-2 py-2 text-slate-700 hover:text-brand-gold font-medium">Mis Pedidos</a>
               )}
-              {currentUser?.email === 'raulpte0211@gmail.com' && (
+              {(currentUser?.email === 'raulpte0211@gmail.com' || currentUser?.role === 'admin') && (
                 <a href="/admin" className="block px-2 py-2 text-brand-gold hover:text-brand-dark font-bold">Panel Admin</a>
               )}
             </div>

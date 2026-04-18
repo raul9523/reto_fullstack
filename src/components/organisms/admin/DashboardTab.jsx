@@ -7,9 +7,10 @@ const DashboardTab = () => {
   const [orders, setOrders] = useState([]);
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [dateRange, setDateRange] = useState('all'); // all, today, week, month
+  const [dateRange, setDateRange] = useState('all'); 
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterProduct, setFilterProduct] = useState('all');
 
@@ -29,45 +30,36 @@ const DashboardTab = () => {
       const cs = [];
       cSnap.forEach(doc => cs.push({ id: doc.id, ...doc.data() }));
       setCategories(cs);
+
+      const uSnap = await getDocs(collection(db, 'users'));
+      const us = [];
+      uSnap.forEach(doc => us.push({ id: doc.id, ...doc.data() }));
+      setUsers(us);
       
       setIsLoading(false);
     };
     fetchData();
   }, []);
 
-  // Lógica de filtrado
+  // ... (filtro y stats se mantienen igual)
   const filteredOrders = useMemo(() => {
     let result = [...orders];
     const now = new Date();
-
-    if (dateRange === 'today') {
-      result = result.filter(o => new Date(o.createdAt).toDateString() === now.toDateString());
-    } else if (dateRange === 'week') {
+    if (dateRange === 'today') result = result.filter(o => new Date(o.createdAt).toDateString() === now.toDateString());
+    else if (dateRange === 'week') {
       const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       result = result.filter(o => new Date(o.createdAt) >= weekAgo);
     } else if (dateRange === 'month') {
       const monthAgo = new Date(now.getFullYear(), now.getMonth(), 1);
       result = result.filter(o => new Date(o.createdAt) >= monthAgo);
     }
-
-    if (filterCategory !== 'all') {
-      result = result.filter(o => o.items.some(item => item.category === filterCategory));
-    }
-
-    if (filterProduct !== 'all') {
-      result = result.filter(o => o.items.some(item => item.id === filterProduct));
-    }
-
+    if (filterCategory !== 'all') result = result.filter(o => o.items.some(item => item.category === filterCategory));
+    if (filterProduct !== 'all') result = result.filter(o => o.items.some(item => item.id === filterProduct));
     return result;
   }, [orders, dateRange, filterCategory, filterProduct]);
 
-  // Cálculos de métricas
   const stats = useMemo(() => {
-    let totalSales = 0;
-    let totalCost = 0;
-    let totalUnits = 0;
-    let totalShipping = 0;
-
+    let totalSales = 0; let totalCost = 0; let totalUnits = 0; let totalShipping = 0;
     filteredOrders.forEach(o => {
       totalSales += o.subtotal || o.totalAmount - (o.shippingCost || 0);
       totalShipping += o.shippingCost || 0;
@@ -78,26 +70,35 @@ const DashboardTab = () => {
         }
       });
     });
-
     const netProfit = totalSales - totalCost;
-
     return { totalSales, totalCost, totalUnits, totalShipping, netProfit };
   }, [filteredOrders, filterProduct]);
 
-  // Datos para la gráfica (Agrupados por día)
   const chartData = useMemo(() => {
     const daily = {};
     filteredOrders.forEach(o => {
       const date = new Date(o.createdAt).toLocaleDateString();
       if (!daily[date]) daily[date] = { date, ventas: 0, ganancia: 0 };
       daily[date].ventas += o.subtotal || o.totalAmount - (o.shippingCost || 0);
-      
       let orderCost = 0;
       o.items.forEach(item => orderCost += (item.cost || 0) * item.quantity);
       daily[date].ganancia += (o.subtotal || o.totalAmount - (o.shippingCost || 0)) - orderCost;
     });
     return Object.values(daily);
   }, [filteredOrders]);
+
+  // Nueva Gráfica: Distribución Geográfica de Clientes
+  const cityData = useMemo(() => {
+    const counts = {};
+    users.forEach(u => {
+      const city = u.city || 'Desconocida';
+      counts[city] = (counts[city] || 0) + 1;
+    });
+    return Object.entries(counts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 8); // Top 8 ciudades
+  }, [users]);
 
   if (isLoading) return <div className="py-20 text-center">Analizando datos...</div>;
 
@@ -151,27 +152,47 @@ const DashboardTab = () => {
         <MetricCard title="Costos" value={`$${stats.totalCost.toLocaleString('es-CO')}`} color="text-red-500" />
         <MetricCard title="Ganancia Neta" value={`$${stats.netProfit.toLocaleString('es-CO')}`} color="text-green-600" bg="bg-green-50" />
         <MetricCard title="Unds. Vendidas" value={stats.totalUnits} color="text-brand-gold" />
-        <MetricCard title="Recaudo Envío" value={`$${stats.totalShipping.toLocaleString('es-CO')}`} color="text-slate-500" />
+        <MetricCard title="Total Clientes" value={users.length} color="text-slate-500" />
       </div>
 
-      {/* Gráfica */}
-      <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
-        <h3 className="text-lg font-bold text-brand-dark mb-8">Rendimiento Histórico</h3>
-        <div className="h-[350px] w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
-              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
-              <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
-              <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} tickFormatter={(value) => `$${value/1000}k`} />
-              <Tooltip 
-                contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
-                formatter={(value) => [`$${value.toLocaleString()}`, '']}
-              />
-              <Legend />
-              <Line type="monotone" dataKey="ventas" stroke="#1A1A1A" strokeWidth={3} dot={{ r: 4, fill: '#1A1A1A' }} activeDot={{ r: 6 }} />
-              <Line type="monotone" dataKey="ganancia" stroke="#B76E79" strokeWidth={3} dot={{ r: 4, fill: '#B76E79' }} />
-            </LineChart>
-          </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Gráfica Rendimiento */}
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-brand-dark mb-8">Rendimiento Histórico</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={chartData}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
+                <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} tickFormatter={(value) => `$${value/1000}k`} />
+                <Tooltip 
+                  contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  formatter={(value) => [`$${value.toLocaleString()}`, '']}
+                />
+                <Line type="monotone" dataKey="ventas" stroke="#1A1A1A" strokeWidth={3} dot={{ r: 4, fill: '#1A1A1A' }} activeDot={{ r: 6 }} />
+                <Line type="monotone" dataKey="ganancia" stroke="#B76E79" strokeWidth={3} dot={{ r: 4, fill: '#B76E79' }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Gráfica Geográfica */}
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+          <h3 className="text-lg font-bold text-brand-dark mb-8">Ubicación de Clientes</h3>
+          <div className="h-[300px] w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={cityData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
+                <XAxis type="number" hide />
+                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} width={100} />
+                <Tooltip 
+                  cursor={{fill: 'transparent'}}
+                  contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                />
+                <Bar dataKey="value" fill="#B76E79" radius={[0, 10, 10, 0]} barSize={20} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         </div>
       </div>
     </div>

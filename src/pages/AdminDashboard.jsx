@@ -9,6 +9,7 @@ const DashboardTab = React.lazy(() => import('../components/organisms/admin/Dash
 const ProductsTab = React.lazy(() => import('../components/organisms/admin/ProductsTab'));
 const CategoriesTab = React.lazy(() => import('../components/organisms/admin/CategoriesTab'));
 const SettingsTab = React.lazy(() => import('../components/organisms/admin/SettingsTab'));
+const UsersTab = React.lazy(() => import('../components/organisms/admin/UsersTab'));
 
 const AdminDashboard = () => {
   const { currentUser } = useUserStore();
@@ -18,10 +19,11 @@ const AdminDashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
 
-  const ADMIN_EMAIL = 'raulpte0211@gmail.com';
-
+  const MASTER_ADMIN = 'raulpte0211@gmail.com';
+  const hasAccess = currentUser && (currentUser.email === MASTER_ADMIN || currentUser.role === 'admin');
+  
   useEffect(() => {
-    if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
+    if (!hasAccess) return;
 
     const fetchAllOrders = async () => {
       try {
@@ -40,7 +42,7 @@ const AdminDashboard = () => {
     };
 
     fetchAllOrders();
-  }, [currentUser]);
+  }, [currentUser, hasAccess]);
 
   const handleConfirmPayment = async (order) => {
     setUpdatingId(order.id);
@@ -116,7 +118,7 @@ const AdminDashboard = () => {
     }
   };
 
-  if (!currentUser || currentUser.email !== ADMIN_EMAIL) {
+  if (!hasAccess) {
     return (
       <MainLayout cartItemCount={itemCount}>
         <div className="py-20 text-center animate-shake">
@@ -132,6 +134,7 @@ const AdminDashboard = () => {
     { id: 'dashboard', label: '📊 Dashboard', color: 'text-brand-gold' },
     { id: 'orders', label: '📦 Pedidos', color: 'text-brand-dark' },
     { id: 'products', label: '👗 Inventario', color: 'text-brand-dark' },
+    { id: 'users', label: '👥 Usuarios', color: 'text-brand-dark' },
     { id: 'categories', label: '🏷️ Categorías', color: 'text-brand-dark' },
     { id: 'settings', label: '⚙️ Configuración', color: 'text-brand-dark' },
   ];
@@ -150,7 +153,7 @@ const AdminDashboard = () => {
             </div>
             <div>
               <p className="text-xs font-bold text-brand-dark">{currentUser.email}</p>
-              <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">Administrador Master</p>
+              <p className="text-[10px] text-green-500 font-bold uppercase tracking-widest">{currentUser.role === 'admin' ? 'Delegado' : 'Súper Admin'}</p>
             </div>
           </div>
         </div>
@@ -179,6 +182,7 @@ const AdminDashboard = () => {
             {activeTab === 'products' && <ProductsTab />}
             {activeTab === 'categories' && <CategoriesTab />}
             {activeTab === 'settings' && <SettingsTab />}
+            {activeTab === 'users' && <UsersTab />}
           </React.Suspense>
           
           {activeTab === 'orders' && (
