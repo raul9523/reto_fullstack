@@ -18,14 +18,17 @@ const UserOrders = () => {
       try {
         const q = query(
           collection(db, 'orders'),
-          where('userId', '==', currentUser.uid),
-          orderBy('createdAt', 'desc')
+          where('userId', '==', currentUser.uid)
         );
         const querySnapshot = await getDocs(q);
         const ordersData = [];
         querySnapshot.forEach((doc) => {
           ordersData.push({ id: doc.id, ...doc.data() });
         });
+        
+        // Ordenar en memoria para evitar el error de índice de Firestore
+        ordersData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        
         setOrders(ordersData);
       } catch (error) {
         console.error("Error al cargar pedidos:", error);
@@ -39,10 +42,11 @@ const UserOrders = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Recibido': return 'bg-blue-100 text-blue-600';
-      case 'En Proceso': return 'bg-amber-100 text-amber-600';
+      case 'Entregado': return 'bg-green-100 text-green-600';
       case 'Despachado': return 'bg-purple-100 text-purple-600';
-      case 'Pagado': return 'bg-green-100 text-green-600';
+      case 'Pagado': return 'bg-blue-100 text-blue-600';
+      case 'Validación de Pago': return 'bg-red-100 text-red-600';
+      case 'Cancelado': return 'bg-slate-100 text-slate-600';
       default: return 'bg-gray-100 text-gray-600';
     }
   };
