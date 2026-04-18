@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, addDoc } from 'firebase/firestore';
+import { collection, getDocs, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
 import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
+import { useSettingsStore } from '../store/settingsStore';
 import MainLayout from '../components/templates/MainLayout';
 import Button from '../components/atoms/Button';
 import Input from '../components/atoms/Input';
@@ -10,6 +11,7 @@ import Input from '../components/atoms/Input';
 const Checkout = () => {
   const { currentUser } = useUserStore();
   const { items, totalAmount, clearCart, itemCount } = useCartStore();
+  const { settings, fetchSettings } = useSettingsStore();
   
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -23,6 +25,7 @@ const Checkout = () => {
   const [orderConfirmed, setOrderConfirmed] = useState(false);
 
   useEffect(() => {
+    fetchSettings();
     // Si hay usuario, precargar sus datos
     if (currentUser) {
       setShippingInfo(prev => ({
@@ -37,7 +40,11 @@ const Checkout = () => {
         const querySnapshot = await getDocs(collection(db, "payment_methods"));
         const methods = [];
         querySnapshot.forEach((doc) => {
-          methods.push({ id: doc.id, ...doc.data() });
+          const data = doc.data();
+          // Solo agregar si está habilitado en settings (usando el ID como llave)
+          if (settings.paymentMethods[doc.id] !== false) {
+            methods.push({ id: doc.id, ...data });
+          }
         });
         setPaymentMethods(methods);
         if (methods.length > 0) {
@@ -51,7 +58,7 @@ const Checkout = () => {
     };
 
     fetchPaymentMethods();
-  }, [currentUser]);
+  }, [currentUser, settings.paymentMethods]);
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -64,6 +71,8 @@ const Checkout = () => {
     setIsConfirming(true);
     try {
       const orderId = `ORD-${Date.now().toString().slice(-6)}`;
+      const totalWithShipping = totalAmount + (settings.shippingCost || 0);
+      
       const orderData = {
         orderNumber: orderId,
         userId: currentUser.uid,
@@ -72,9 +81,13 @@ const Checkout = () => {
           id: item.product.id,
           name: item.product.name,
           price: item.product.price,
-          quantity: item.quantity
+          cost: item.product.cost || (item.product.price * 0.6), // Fallback si no hay costo definido
+          quantity: item.quantity,
+          category: item.product.category
         })),
-        totalAmount,
+        subtotal: totalAmount,
+        shippingCost: settings.shippingCost || 0,
+        totalAmount: totalWithShipping,
         shippingInfo,
         paymentMethod: selectedPaymentMethod,
         status: 'Recibido',
@@ -84,7 +97,17 @@ const Checkout = () => {
       // 1. Guardar el pedido en Firestore
       await addDoc(collection(db, 'orders'), orderData);
 
-      // 2. Disparar notificación por correo (Para la extensión "Trigger Email")
+      // 2. Descontar Stock
+      for (const item of items) {
+        const productRef = doc(db, 'products', item.product.id);
+        const productSnap = await getDoc(productRef);
+        if (productSnap.exists()) {
+          const newStock = Math.max(0, (productSnap.data().stockQuantity || 0) - item.quantity);
+          await updateDoc(productRef, { stockQuantity: newStock });
+        }
+      }
+
+      // 3. Disparar notificación por correo
       await addDoc(collection(db, 'mail'), {
         to: [currentUser.email, 'raulpte0211@gmail.com'],
         message: {
@@ -92,7 +115,7 @@ const Checkout = () => {
           html: `
             <h1>¡Gracias por tu compra en DÚO DREAMS!</h1>
             <p>Hola ${currentUser.firstName || 'Cliente'}, hemos recibido tu pedido <b>${orderId}</b>.</p>
-            <p>Total a pagar: <b>$${totalAmount.toLocaleString('es-CO')}</b></p>
+            <p>Total a pagar (con envío): <b>$${totalWithShipping.toLocaleString('es-CO')}</b></p>
             <p>Estado actual: <b>Recibido</b></p>
             <hr/>
             <p>Pronto recibirás noticias sobre el despacho de tu pedido.</p>
@@ -100,7 +123,7 @@ const Checkout = () => {
         }
       });
 
-      // 3. Limpiar carrito y confirmar
+      // 4. Limpiar carrito y confirmar
       clearCart();
       setOrderConfirmed(true);
     } catch (error) {
@@ -258,15 +281,17 @@ const Checkout = () => {
               <div className="space-y-3 py-4 border-t border-gray-100">
                 <div className="flex justify-between text-slate-500">
                   <span>Subtotal</span>
-                  <span>${totalAmount.toLocaleString('es-MX')}</span>
+                  <span>${totalAmount.toLocaleString('es-CO')}</span>
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span>Envío</span>
-                  <span className="text-green-600 font-medium">Gratis</span>
+                  <span className={settings.shippingCost > 0 ? 'text-slate-800' : 'text-green-600 font-medium'}>
+                    {settings.shippingCost > 0 ? `$${settings.shippingCost.toLocaleString('es-CO')}` : 'Gratis'}
+                  </span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-slate-800 pt-2 border-t border-gray-100">
                   <span>Total</span>
-                  <span>${totalAmount.toLocaleString('es-MX')}</span>
+                  <span>${(totalAmount + (settings.shippingCost || 0)).toLocaleString('es-CO')}</span>
                 </div>
               </div>
 

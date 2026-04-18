@@ -3,6 +3,7 @@ import MainLayout from '../components/templates/MainLayout';
 import ProductGallery from '../components/organisms/ProductGallery';
 import useProductStore from '../store/productStore';
 import { useCartStore } from '../store/cartStore';
+import Button from '../components/atoms/Button';
 
 const Home = () => {
   const { filteredProducts, fetchProducts, isLoading, searchQuery } = useProductStore();

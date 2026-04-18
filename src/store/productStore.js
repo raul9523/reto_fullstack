@@ -21,9 +21,10 @@ const useProductStore = create((set, get) => ({
         allProducts.push({ id: doc.id, ...doc.data() });
       });
       
-      // Filtrar solo las categorías requeridas para DÚO DREAMS
+      // Filtrar solo las categorías requeridas para DÚO DREAMS y con stock disponible
       const productsData = allProducts.filter(p => 
-        p.category === 'Accesorios' || p.category === 'Pijamas'
+        (p.category === 'Accesorios' || p.category === 'Pijamas') && 
+        (p.stockQuantity === undefined || p.stockQuantity > 0)
       );
       
       set({ 
