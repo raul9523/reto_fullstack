@@ -73,9 +73,9 @@ const AdminDashboard = () => {
       
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'Pagado' } : o));
 
-      // 3. Notificación Final al Cliente
+      // 3. Notificación Final al Cliente e Admin Actual
       await addDoc(collection(db, 'mail'), {
-        to: [order.userEmail, MASTER_ADMIN],
+        to: [order.userEmail, currentUser.email],
         message: {
           subject: `¡Pago Confirmado! Pedido DÚO DREAMS: ${order.orderNumber}`,
           html: `
