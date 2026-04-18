@@ -39,6 +39,7 @@ const Registro = () => {
     dv: '',
     firstName: '',
     lastName: '',
+    contactName: '',
     email: '',
     phone: '',
     address: '',
@@ -207,24 +208,63 @@ const Registro = () => {
               </div>
             )}
 
-            {/* Nombres y Apellidos */}
-            <Input
-              id="firstName"
-              label={currentTypeIsCompany ? "Razón Social / Nombres" : "Nombres"}
-              placeholder="Ej. Juan"
-              value={formData.firstName}
-              onChange={handleChange}
-              required
-            />
-            
-            <Input
-              id="lastName"
-              label={currentTypeIsCompany ? "Apellidos (Opcional)" : "Apellidos"}
-              placeholder="Ej. Pérez"
-              value={formData.lastName}
-              onChange={handleChange}
-              required={!currentTypeIsCompany}
-            />
+            {/* Nombres y Apellidos / Razón Social */}
+            {!currentTypeIsCompany ? (
+              <>
+                <Input
+                  id="firstName"
+                  label="Nombres"
+                  placeholder="Ej. Juan"
+                  value={formData.firstName}
+                  onChange={handleChange}
+                  required
+                />
+                
+                <Input
+                  id="lastName"
+                  label="Apellidos"
+                  placeholder="Ej. Pérez"
+                  value={formData.lastName}
+                  onChange={handleChange}
+                  required
+                />
+
+                {/* Fecha de Nacimiento (Solo Personas Naturales) */}
+                <div className="sm:col-span-2">
+                  <Input
+                    id="birthDate"
+                    type="date"
+                    label="Fecha de Nacimiento"
+                    value={formData.birthDate}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="sm:col-span-2">
+                  <Input
+                    id="firstName"
+                    label="Razón Social"
+                    placeholder="Ej. Mi Empresa SAS"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+                <div className="sm:col-span-2">
+                  <Input
+                    id="contactName"
+                    label="Nombre Representante Legal / Contacto"
+                    placeholder="Ej. María López"
+                    value={formData.contactName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </>
+            )}
 
             {/* Correo y Celular */}
             <div className="sm:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
