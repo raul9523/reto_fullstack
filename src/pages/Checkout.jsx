@@ -8,6 +8,19 @@ import MainLayout from '../components/templates/MainLayout';
 import Button from '../components/atoms/Button';
 import Input from '../components/atoms/Input';
 
+const COLOMBIA_DATA = {
+  "Antioquia": ["Medellín", "Envigado", "Itagüí", "Bello", "Rionegro", "Sabaneta"],
+  "Bogotá D.C.": ["Bogotá"],
+  "Valle del Cauca": ["Cali", "Palmira", "Buenaventura", "Tuluá", "Buga"],
+  "Atlántico": ["Barranquilla", "Soledad", "Malambo", "Puerto Colombia"],
+  "Santander": ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja"],
+  "Bolívar": ["Cartagena", "Turbaco", "Magangué"],
+  "Cundinamarca": ["Soacha", "Chía", "Zipaquirá", "Facatativá", "Fusagasugá"],
+  "Risaralda": ["Pereira", "Dosquebradas"],
+  "Caldas": ["Manizales"],
+  "Quindío": ["Armenia"]
+};
+
 const Checkout = () => {
   const { currentUser } = useUserStore();
   const { items, totalAmount, clearCart, itemCount } = useCartStore();
@@ -15,24 +28,44 @@ const Checkout = () => {
   
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
+  
+  // Lógica de Envío
+  const [isSameAddress, setIsSameAddress] = useState(true);
   const [shippingInfo, setShippingInfo] = useState({
+    recipientName: '',
+    recipientPhone: '',
+    department: 'Antioquia',
+    city: 'Medellín',
     address: '',
-    phone: '',
     notes: ''
   });
+
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
 
   useEffect(() => {
     fetchSettings();
-    // Si hay usuario, precargar sus datos
-    if (currentUser) {
+    // Si hay usuario y se elige misma dirección, precargar sus datos
+    if (currentUser && isSameAddress) {
       setShippingInfo(prev => ({
         ...prev,
-        address: currentUser.address || '',
-        phone: currentUser.phone || ''
+        recipientName: `${currentUser.firstName || ''} ${currentUser.lastName || ''}`.trim(),
+        recipientPhone: currentUser.phone || '',
+        department: currentUser.department || 'Antioquia',
+        city: currentUser.city || 'Medellín',
+        address: currentUser.address || ''
       }));
+    } else if (!isSameAddress) {
+      // Limpiar campos si decide cambiar dirección para que los llene desde cero
+      setShippingInfo({
+        recipientName: '',
+        recipientPhone: '',
+        department: 'Antioquia',
+        city: 'Medellín',
+        address: '',
+        notes: ''
+      });
     }
 
     const fetchPaymentMethods = async () => {
@@ -40,16 +73,12 @@ const Checkout = () => {
         const querySnapshot = await getDocs(collection(db, "payment_methods"));
         const methods = [];
         querySnapshot.forEach((doc) => {
-          const data = doc.data();
-          // Solo agregar si está habilitado en settings (usando el ID como llave)
           if (settings.paymentMethods[doc.id] !== false) {
-            methods.push({ id: doc.id, ...data });
+            methods.push({ id: doc.id, ...doc.data() });
           }
         });
         setPaymentMethods(methods);
-        if (methods.length > 0) {
-          setSelectedPaymentMethod(methods[0].id);
-        }
+        if (methods.length > 0) setSelectedPaymentMethod(methods[0].id);
       } catch (error) {
         console.error("Error fetching payment methods:", error);
       } finally {
@@ -58,7 +87,7 @@ const Checkout = () => {
     };
 
     fetchPaymentMethods();
-  }, [currentUser, settings.paymentMethods]);
+  }, [currentUser, settings.paymentMethods, isSameAddress]);
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -180,35 +209,100 @@ const Checkout = () => {
             
             {/* Información de Envío */}
             <section className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100">
-              <h2 className="text-xl font-bold text-slate-800 mb-6 flex items-center">
-                <span className="w-8 h-8 bg-brand-gold/10 text-brand-gold rounded-full flex items-center justify-center mr-3 text-sm">1</span>
-                Información de Envío
-              </h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-bold text-slate-800 flex items-center">
+                  <span className="w-8 h-8 bg-brand-gold/10 text-brand-gold rounded-full flex items-center justify-center mr-3 text-sm">1</span>
+                  Información de Envío
+                </h2>
+                
+                {/* Toggle de Dirección */}
+                <label className="flex items-center cursor-pointer gap-2 bg-gray-50 px-3 py-1.5 rounded-full border border-gray-100">
+                  <input 
+                    type="checkbox" 
+                    checked={isSameAddress}
+                    onChange={(e) => setIsSameAddress(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="relative w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-brand-gold"></div>
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Usar mis datos</span>
+                </label>
+              </div>
+
+              <div className="space-y-6">
+                {/* Datos del Destinatario (Solo si no es la misma dirección o siempre para confirmar) */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input 
-                    id="address"
-                    label="Dirección de Entrega"
-                    value={shippingInfo.address}
+                    id="recipientName"
+                    label="¿Quién recibe?"
+                    value={shippingInfo.recipientName}
                     onChange={handleInputChange}
-                    placeholder="Calle, número, ciudad..."
+                    placeholder="Nombre completo"
+                    disabled={isSameAddress}
+                    required
+                  />
+                  <Input 
+                    id="recipientPhone"
+                    label="Teléfono de contacto"
+                    value={shippingInfo.recipientPhone}
+                    onChange={handleInputChange}
+                    placeholder="Ej: 300 000 0000"
+                    disabled={isSameAddress}
                     required
                   />
                 </div>
+
+                {!isSameAddress && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Departamento</label>
+                      <select
+                        value={shippingInfo.department}
+                        onChange={(e) => {
+                          const dept = e.target.value;
+                          setShippingInfo(prev => ({ 
+                            ...prev, 
+                            department: dept, 
+                            city: COLOMBIA_DATA[dept][0] 
+                          }));
+                        }}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-brand-gold"
+                      >
+                        {Object.keys(COLOMBIA_DATA).map(dept => (
+                          <option key={dept} value={dept}>{dept}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Ciudad</label>
+                      <select
+                        value={shippingInfo.city}
+                        onChange={(e) => setShippingInfo(prev => ({ ...prev, city: e.target.value }))}
+                        className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:border-brand-gold"
+                      >
+                        {COLOMBIA_DATA[shippingInfo.department].map(city => (
+                          <option key={city} value={city}>{city}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                )}
+
                 <Input 
-                  id="phone"
-                  label="Teléfono de Contacto"
-                  value={shippingInfo.phone}
+                  id="address"
+                  label="Dirección Exacta"
+                  value={shippingInfo.address}
                   onChange={handleInputChange}
-                  placeholder="300 000 0000"
+                  placeholder="Ej: Calle 10 # 5-20, Vereda..."
+                  disabled={isSameAddress}
                   required
                 />
+
                 <Input 
                   id="notes"
-                  label="Notas Adicionales (Opcional)"
+                  label="Indicaciones para el repartidor (Opcional)"
                   value={shippingInfo.notes}
                   onChange={handleInputChange}
-                  placeholder="Ej: Apartamento 201, dejar en portería..."
+                  placeholder="Ej: Portería, Apto 301, Casa blanca..."
                 />
               </div>
             </section>
