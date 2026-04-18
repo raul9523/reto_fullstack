@@ -85,7 +85,7 @@ const ProductsTab = () => {
         price: Number(formData.price) || 0,
         cost: Number(formData.cost) || 0,
         stockQuantity: Number(formData.stockQuantity) || 0,
-        category: formData.category || (categories[0]?.name || 'Pijamas'),
+        category: formData.category || '', // Permitir vacío
         imageUrl: formData.imageUrl || '',
         discount: Number(formData.discount) || 0,
         isPromo: Boolean(formData.isPromo)
@@ -100,7 +100,7 @@ const ProductsTab = () => {
         });
       }
       setFormData({
-        name: '', description: '', price: 0, cost: 0, stockQuantity: 0, category: 'Pijamas', imageUrl: '', discount: 0, isPromo: false
+        name: '', description: '', price: 0, cost: 0, stockQuantity: 0, category: '', imageUrl: '', discount: 0, isPromo: false
       });
       setEditingProduct(null);
       fetchData();
@@ -119,7 +119,7 @@ const ProductsTab = () => {
       price: product.price || 0,
       cost: product.cost || 0,
       stockQuantity: product.stockQuantity || 0,
-      category: product.category || (categories[0]?.name || 'Pijamas'),
+      category: product.category || '',
       imageUrl: product.imageUrl || '',
       discount: product.discount || 0,
       isPromo: product.isPromo || false
@@ -184,6 +184,7 @@ const ProductsTab = () => {
               onChange={handleInputChange}
               className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 outline-none focus:border-brand-gold transition-all"
             >
+              <option value="">Sin Categoría</option>
               {categories.map(cat => (
                 <option key={cat.id} value={cat.name}>{cat.name}</option>
               ))}

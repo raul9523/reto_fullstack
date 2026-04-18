@@ -88,6 +88,27 @@ const Home = () => {
               </section>
             );
           })}
+
+          {/* Sección Novedades (Sin Categoría) */}
+          {(() => {
+            const uncatProducts = filteredProducts.filter(p => !p.category || p.category === '');
+            if (uncatProducts.length === 0) return null;
+            return (
+              <section>
+                <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-4">
+                  <div>
+                    <h2 className="text-3xl font-bold text-brand-dark">Novedades</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">Nuestros últimos lanzamientos</p>
+                  </div>
+                </div>
+                <ProductGallery 
+                  products={uncatProducts.slice(0, 8)} 
+                  isLoading={false} 
+                  onAddToCart={(product) => addToCart(product, 1)} 
+                />
+              </section>
+            );
+          })()}
         </div>
       )}
 
