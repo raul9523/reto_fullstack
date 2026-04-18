@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './main.css'
 import Home from './pages/Home.jsx';
 import Registro from './registro/Registro.jsx';
+import Login from './registro/Login.jsx';
 import Checkout from './pages/Checkout.jsx';
 import { useUserStore } from './store/userStore';
 
@@ -17,6 +18,10 @@ const App = () => {
 
   if (window.location.pathname === '/registro') {
     return <Registro />;
+  }
+  
+  if (window.location.pathname === '/login') {
+    return <Login />;
   }
   
   if (window.location.pathname === '/checkout') {

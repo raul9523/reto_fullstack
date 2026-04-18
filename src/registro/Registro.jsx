@@ -329,6 +329,22 @@ const Registro = () => {
               {isRegistering ? 'Registrando...' : 'Registrarse'}
             </Button>
           </div>
+
+          <div className="text-center mt-6">
+            <p className="text-sm text-slate-600">
+              ¿Ya tienes una cuenta?{' '}
+              <a 
+                href="/login" 
+                className="font-bold text-brand-blue hover:text-blue-500 transition-colors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  window.location.href = '/login';
+                }}
+              >
+                Inicia sesión aquí
+              </a>
+            </p>
+          </div>
           
         </form>
       </div>

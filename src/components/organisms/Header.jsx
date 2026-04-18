@@ -73,8 +73,8 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
                   </Button>
                 </>
               ) : (
-                <Button variant="primary" onClick={() => window.location.href = '/registro'} className="px-4 py-2 text-sm">
-                  Registrarse
+                <Button variant="primary" onClick={() => window.location.href = '/login'} className="px-4 py-2 text-sm">
+                  Iniciar Sesión
                 </Button>
               )}
             </div>
@@ -138,8 +138,8 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
                 </Button>
               </div>
             ) : (
-              <Button variant="primary" onClick={() => window.location.href = '/registro'} className="w-full justify-center">
-                Registrarse / Iniciar Sesión
+              <Button variant="primary" onClick={() => window.location.href = '/login'} className="w-full justify-center">
+                Iniciar Sesión
               </Button>
             )}
             
