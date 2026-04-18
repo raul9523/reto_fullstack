@@ -3,7 +3,8 @@ import PropTypes from 'prop-types';
 import Button from '../atoms/Button';
 
 const ProductCard = ({ product, onAddToCart }) => {
-  const { name, price, description, imageUrl, stockQuantity } = product;
+  const { name, price, description, imageUrl, stockQuantity, discount, isPromo } = product;
+  const finalPrice = discount > 0 ? price - (price * discount / 100) : price;
 
   return (
     <div className="card-dna flex flex-col h-full group">
@@ -23,11 +24,29 @@ const ProductCard = ({ product, onAddToCart }) => {
         
         <div className="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
 
-        {stockQuantity <= 5 && stockQuantity > 0 && (
-          <div className="absolute top-4 left-4 bg-white/90 backdrop-blur-sm text-brand-gold px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase">
-            Últimas {stockQuantity} unidades
-          </div>
-        )}
+        {/* Labels */}
+        <div className="absolute top-4 left-4 flex flex-col gap-2">
+          {isPromo && (
+            <div className="bg-brand-dark text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">
+              Destacado
+            </div>
+          )}
+          {discount > 0 && (
+            <div className="bg-brand-gold text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">
+              -{discount}%
+            </div>
+          )}
+          {stockQuantity <= 5 && stockQuantity > 0 && (
+            <div className="bg-white/90 backdrop-blur-sm text-brand-gold px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-sm">
+              Últimas {stockQuantity} unidades
+            </div>
+          )}
+          {stockQuantity === 0 && (
+            <div className="bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">
+              Agotado
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Product Details */}
@@ -41,16 +60,23 @@ const ProductCard = ({ product, onAddToCart }) => {
         </p>
         
         <div className="flex items-center justify-between mt-auto pt-4 border-t border-gray-50">
-          <span className="text-xl font-bold text-brand-dark">
-            ${price.toLocaleString('es-CO')}
-          </span>
+          <div className="flex flex-col">
+            {discount > 0 && (
+              <span className="text-[10px] text-slate-400 line-through font-bold">
+                ${price.toLocaleString('es-CO')}
+              </span>
+            )}
+            <span className="text-xl font-black text-brand-dark">
+              ${finalPrice.toLocaleString('es-CO')}
+            </span>
+          </div>
           
           <Button 
             onClick={() => onAddToCart && onAddToCart(product)}
             disabled={stockQuantity === 0}
             className="px-5 py-2 text-xs uppercase tracking-widest font-bold"
           >
-            Añadir
+            {stockQuantity === 0 ? 'Agotado' : 'Añadir'}
           </Button>
         </div>
       </div>

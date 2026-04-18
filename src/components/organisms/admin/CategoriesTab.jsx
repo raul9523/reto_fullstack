@@ -11,7 +11,7 @@ const CategoriesTab = () => {
 
   const fetchCategories = async () => {
     setIsLoading(true);
-    const snap = await getDocs(collection(db, 'categories'));
+    const snap = await getDocs(query(collection(db, 'categories'), orderBy('order', 'asc')));
     const cats = [];
     snap.forEach(doc => cats.push({ id: doc.id, ...doc.data() }));
     setCategories(cats);
@@ -28,14 +28,19 @@ const CategoriesTab = () => {
     await setDoc(doc(db, 'categories', id), {
       name: id,
       isActive: true,
+      order: categories.length + 1,
       createdAt: new Date().toISOString()
     });
     setNewCat('');
     fetchCategories();
   };
 
+  const handleUpdateOrder = async (catId, newOrder) => {
+    await updateDoc(doc(db, 'categories', catId), { order: parseInt(newOrder) });
+    fetchCategories();
+  };
+
   const handleDelete = async (catId) => {
-    // Verificar si hay productos o pedidos con esta categoría
     const productsQuery = query(collection(db, 'products'), where('category', '==', catId));
     const productsSnap = await getDocs(productsQuery);
     
@@ -75,6 +80,7 @@ const CategoriesTab = () => {
         <table className="w-full text-left">
           <thead className="bg-gray-50">
             <tr className="text-[10px] uppercase tracking-widest font-bold text-slate-400">
+              <th className="px-6 py-4">Prioridad</th>
               <th className="px-6 py-4">Nombre</th>
               <th className="px-6 py-4">Estado</th>
               <th className="px-6 py-4 text-right">Acciones</th>
@@ -83,6 +89,14 @@ const CategoriesTab = () => {
           <tbody className="divide-y divide-gray-50">
             {categories.map(cat => (
               <tr key={cat.id} className="hover:bg-gray-50/50 transition-colors">
+                <td className="px-6 py-4">
+                  <input 
+                    type="number" 
+                    value={cat.order || 0}
+                    onChange={(e) => handleUpdateOrder(cat.id, e.target.value)}
+                    className="w-12 bg-gray-50 border border-gray-100 rounded px-2 py-1 text-xs font-bold text-brand-dark focus:border-brand-gold outline-none"
+                  />
+                </td>
                 <td className="px-6 py-4 font-bold text-brand-dark">{cat.name}</td>
                 <td className="px-6 py-4">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${cat.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>

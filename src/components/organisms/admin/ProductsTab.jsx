@@ -17,8 +17,12 @@ const ProductsTab = () => {
     cost: 0,
     stockQuantity: 0,
     category: 'Pijamas',
-    imageUrl: ''
+    imageUrl: '',
+    discount: 0,
+    isPromo: false
   });
+
+  const [massDiscount, setMassDiscount] = useState({ category: 'all', percentage: 0 });
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -27,7 +31,7 @@ const ProductsTab = () => {
     pSnap.forEach(doc => ps.push({ id: doc.id, ...doc.data() }));
     setProducts(ps);
 
-    const cSnap = await getDocs(collection(db, 'categories'));
+    const cSnap = await getDocs(query(collection(db, 'categories'), orderBy('order', 'asc')));
     const cs = [];
     cSnap.forEach(doc => cs.push({ id: doc.id, ...doc.data() }));
     setCategories(cs);
@@ -39,11 +43,36 @@ const ProductsTab = () => {
   }, []);
 
   const handleInputChange = (e) => {
-    const { id, value } = e.target;
+    const { id, value, type, checked } = e.target;
     setFormData(prev => ({ 
       ...prev, 
-      [id]: (id === 'price' || id === 'cost' || id === 'stockQuantity') ? parseFloat(value) : value 
+      [id]: type === 'checkbox' ? checked : (id === 'price' || id === 'cost' || id === 'stockQuantity' || id === 'discount') ? parseFloat(value) : value 
     }));
+  };
+
+  const handleApplyMassDiscount = async () => {
+    if (massDiscount.percentage < 0 || massDiscount.percentage > 100) return alert("Porcentaje inválido");
+    if (!confirm(`¿Aplicar ${massDiscount.percentage}% de descuento a ${massDiscount.category === 'all' ? 'TODOS los productos' : 'la categoría ' + massDiscount.category}?`)) return;
+
+    setIsLoading(true);
+    try {
+      const q = massDiscount.category === 'all' 
+        ? collection(db, 'products') 
+        : query(collection(db, 'products'), where('category', '==', massDiscount.category));
+      
+      const snap = await getDocs(q);
+      const batch = [];
+      snap.forEach(docSnap => {
+        batch.push(updateDoc(doc(db, 'products', docSnap.id), { discount: massDiscount.percentage }));
+      });
+      await Promise.all(batch);
+      alert("Descuento masivo aplicado!");
+      fetchData();
+    } catch (e) {
+      alert("Error: " + e.message);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -57,7 +86,9 @@ const ProductsTab = () => {
         cost: Number(formData.cost) || 0,
         stockQuantity: Number(formData.stockQuantity) || 0,
         category: formData.category || (categories[0]?.name || 'Pijamas'),
-        imageUrl: formData.imageUrl || ''
+        imageUrl: formData.imageUrl || '',
+        discount: Number(formData.discount) || 0,
+        isPromo: Boolean(formData.isPromo)
       };
 
       if (editingProduct) {
@@ -69,7 +100,7 @@ const ProductsTab = () => {
         });
       }
       setFormData({
-        name: '', description: '', price: 0, cost: 0, stockQuantity: 0, category: 'Pijamas', imageUrl: ''
+        name: '', description: '', price: 0, cost: 0, stockQuantity: 0, category: 'Pijamas', imageUrl: '', discount: 0, isPromo: false
       });
       setEditingProduct(null);
       fetchData();
@@ -89,7 +120,9 @@ const ProductsTab = () => {
       cost: product.cost || 0,
       stockQuantity: product.stockQuantity || 0,
       category: product.category || (categories[0]?.name || 'Pijamas'),
-      imageUrl: product.imageUrl || ''
+      imageUrl: product.imageUrl || '',
+      discount: product.discount || 0,
+      isPromo: product.isPromo || false
     });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
@@ -102,6 +135,40 @@ const ProductsTab = () => {
 
   return (
     <div className="space-y-10 animate-fade-in">
+      {/* Herramienta de Descuento Masivo */}
+      <div className="bg-gradient-to-r from-brand-gold/10 to-transparent p-6 rounded-3xl border border-brand-gold/20 flex flex-wrap items-center gap-6">
+        <div>
+          <h3 className="font-black text-brand-dark uppercase tracking-tighter">Descuento Masivo</h3>
+          <p className="text-[10px] text-slate-500 font-bold uppercase">Aplica promociones a todo el inventario</p>
+        </div>
+        <div className="flex gap-2 items-center bg-white p-2 rounded-2xl shadow-sm">
+          <select 
+            value={massDiscount.category} 
+            onChange={(e) => setMassDiscount(prev => ({ ...prev, category: e.target.value }))}
+            className="text-xs font-bold px-3 py-2 bg-gray-50 rounded-xl outline-none border-none"
+          >
+            <option value="all">Todo el Inventario</option>
+            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+          </select>
+          <div className="flex items-center gap-1 bg-gray-50 px-3 py-2 rounded-xl">
+            <input 
+              type="number" 
+              placeholder="0"
+              value={massDiscount.percentage}
+              onChange={(e) => setMassDiscount(prev => ({ ...prev, percentage: parseFloat(e.target.value) }))}
+              className="w-10 bg-transparent text-center font-black text-brand-gold outline-none"
+            />
+            <span className="text-xs font-black text-brand-gold">%</span>
+          </div>
+          <button 
+            onClick={handleApplyMassDiscount}
+            className="bg-brand-dark text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-brand-gold transition-all"
+          >
+            Aplicar
+          </button>
+        </div>
+      </div>
+
       {/* Formulario */}
       <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm">
         <h2 className="text-xl font-bold text-brand-dark mb-6">
@@ -125,11 +192,27 @@ const ProductsTab = () => {
           <div className="md:col-span-2">
             <Input id="description" label="Descripción" value={formData.description} onChange={handleInputChange} required />
           </div>
-          <Input id="price" label="Precio de Venta" type="number" value={formData.price} onChange={handleInputChange} required />
-          <Input id="cost" label="Costo de Adquisición" type="number" value={formData.cost} onChange={handleInputChange} required />
-          <Input id="stockQuantity" label="Stock Inicial" type="number" value={formData.stockQuantity} onChange={handleInputChange} required />
+          <div className="grid grid-cols-2 gap-4">
+            <Input id="price" label="Precio de Venta" type="number" value={formData.price} onChange={handleInputChange} required />
+            <Input id="discount" label="% Descuento" type="number" value={formData.discount} onChange={handleInputChange} />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <Input id="cost" label="Costo de Adquisición" type="number" value={formData.cost} onChange={handleInputChange} required />
+            <Input id="stockQuantity" label="Stock Inicial" type="number" value={formData.stockQuantity} onChange={handleInputChange} required />
+          </div>
           <Input id="imageUrl" label="URL de la Imagen" placeholder="https://..." value={formData.imageUrl} onChange={handleInputChange} required />
           
+          <div className="flex items-center gap-2 pt-4">
+            <input 
+              type="checkbox" 
+              id="isPromo" 
+              checked={formData.isPromo}
+              onChange={handleInputChange}
+              className="w-5 h-5 accent-brand-gold"
+            />
+            <label htmlFor="isPromo" className="text-sm font-bold text-brand-dark cursor-pointer">Marcar como PROMOCIÓN (Aparece primero)</label>
+          </div>
+
           <div className="md:col-span-2 flex justify-end gap-3 pt-4">
             {editingProduct && (
               <Button variant="secondary" onClick={() => {

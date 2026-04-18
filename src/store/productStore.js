@@ -1,15 +1,33 @@
 import { create } from 'zustand';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
 
 const useProductStore = create((set, get) => ({
   // Estado inicial
   products: [],
+  categories: [],
   filteredProducts: [],
   searchQuery: '',
   selectedCategory: null,
   isLoading: false,
   error: null,
+
+  // Acción para descargar categorías
+  fetchCategories: async () => {
+    try {
+      const querySnapshot = await getDocs(query(collection(db, "categories"), orderBy('order', 'asc')));
+      const cats = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        if (data.isActive !== false) {
+          cats.push({ id: doc.id, ...data });
+        }
+      });
+      set({ categories: cats });
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  },
 
   // Acción para descargar los productos reales desde Firestore
   fetchProducts: async () => {
@@ -21,21 +39,19 @@ const useProductStore = create((set, get) => ({
         allProducts.push({ id: doc.id, ...doc.data() });
       });
       
-      // NOTA: Temporalmente mostramos todos los productos para que puedas editarlos 
-      // y asignarles las nuevas categorías (Pijamas/Accesorios) y stock.
-      const productsData = allProducts; 
-      /* const productsData = allProducts.filter(p => 
-        (p.category === 'Accesorios' || p.category === 'Pijamas') && 
-        (p.stockQuantity === undefined || p.stockQuantity > 0)
-      ); */
-      
+      // Ordenar: Promociones primero
+      const sortedProducts = allProducts.sort((a, b) => {
+        if (a.isPromo && !b.isPromo) return -1;
+        if (!a.isPromo && b.isPromo) return 1;
+        return 0;
+      });
+
       set({ 
-        products: productsData, 
-        filteredProducts: productsData,
+        products: sortedProducts, 
+        filteredProducts: sortedProducts,
         isLoading: false 
       });
       
-      // Aplicar filtros existentes por si se recargaron los datos mientras había una búsqueda
       get().applyFilters();
       
     } catch (error) {
@@ -56,7 +72,7 @@ const useProductStore = create((set, get) => ({
         : true;
         
       const matchesCategory = selectedCategory 
-        ? product.categoryId === selectedCategory 
+        ? product.category === selectedCategory 
         : true;
       
       return matchesSearch && matchesCategory;
@@ -71,8 +87,8 @@ const useProductStore = create((set, get) => ({
     get().applyFilters();
   },
 
-  setSelectedCategory: (categoryId) => {
-    set({ selectedCategory: categoryId });
+  setSelectedCategory: (categoryName) => {
+    set({ selectedCategory: categoryName });
     get().applyFilters();
   },
 }));

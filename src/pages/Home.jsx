@@ -6,7 +6,7 @@ import { useCartStore } from '../store/cartStore';
 import Button from '../components/atoms/Button';
 
 const Home = () => {
-  const { filteredProducts, fetchProducts, isLoading, searchQuery } = useProductStore();
+  const { filteredProducts, categories, fetchProducts, fetchCategories, isLoading, searchQuery } = useProductStore();
   const { addToCart, itemCount } = useCartStore();
 
   // Paginación
@@ -18,10 +18,11 @@ const Home = () => {
     setCurrentPage(1);
   }, [searchQuery]);
 
-  // Fetch products from Firestore on mount
+  // Fetch data on mount
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchCategories();
+  }, [fetchProducts, fetchCategories]);
 
   // Lógica de recorte para la página actual
   const indexOfLastItem = currentPage * itemsPerPage;
@@ -31,7 +32,6 @@ const Home = () => {
 
   const handlePageChange = (pageNumber) => {
     setCurrentPage(pageNumber);
-    // Hacer scroll suave hacia arriba al cambiar de página
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -47,7 +47,6 @@ const Home = () => {
           </Button>
         </div>
         <div className="absolute inset-0 bg-gradient-to-r from-brand-dark via-transparent to-transparent opacity-60"></div>
-        {/* Aquí iría una imagen de fondo de pijamas de lujo */}
         <div className="absolute right-0 top-0 h-full w-1/2 bg-[url('https://images.unsplash.com/photo-1541533260371-b8f25871f7f9?auto=format&fit=crop&q=80')] bg-cover bg-center opacity-40"></div>
       </div>
 
@@ -58,7 +57,7 @@ const Home = () => {
       ) : searchQuery ? (
         <>
           <div className="mb-8">
-            <h2 className="text-2xl font-bold">Resultados para "{searchQuery}"</h2>
+            <h2 className="text-2xl font-bold text-brand-dark">Resultados para "{searchQuery}"</h2>
           </div>
           <ProductGallery 
             products={currentProducts} 
@@ -68,35 +67,27 @@ const Home = () => {
         </>
       ) : (
         <div className="space-y-20">
-          {/* Sección Pijamas */}
-          <section>
-            <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-4">
-              <div>
-                <h2 className="text-3xl font-bold text-brand-dark">Pijamas</h2>
-                <p className="text-slate-500">Comodidad y elegancia para tus noches</p>
-              </div>
-            </div>
-            <ProductGallery 
-              products={filteredProducts.filter(p => p.category === 'Pijamas').slice(0, 4)} 
-              isLoading={false} 
-              onAddToCart={(product) => addToCart(product, 1)} 
-            />
-          </section>
+          {/* Categorías Dinámicas */}
+          {categories.map((cat) => {
+            const catProducts = filteredProducts.filter(p => p.category === cat.name);
+            if (catProducts.length === 0) return null;
 
-          {/* Sección Accesorios */}
-          <section>
-            <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-4">
-              <div>
-                <h2 className="text-3xl font-bold text-brand-dark">Accesorios</h2>
-                <p className="text-slate-500">Detalles que marcan la diferencia</p>
-              </div>
-            </div>
-            <ProductGallery 
-              products={filteredProducts.filter(p => p.category === 'Accesorios').slice(0, 4)} 
-              isLoading={false} 
-              onAddToCart={(product) => addToCart(product, 1)} 
-            />
-          </section>
+            return (
+              <section key={cat.id}>
+                <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-4">
+                  <div>
+                    <h2 className="text-3xl font-bold text-brand-dark">{cat.name}</h2>
+                    <p className="text-slate-500 font-medium tracking-tight">Selección exclusiva de nuestra categoría {cat.name.toLowerCase()}</p>
+                  </div>
+                </div>
+                <ProductGallery 
+                  products={catProducts.slice(0, 4)} 
+                  isLoading={false} 
+                  onAddToCart={(product) => addToCart(product, 1)} 
+                />
+              </section>
+            );
+          })}
         </div>
       )}
 
