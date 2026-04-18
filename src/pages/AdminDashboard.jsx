@@ -99,30 +99,62 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleUpdateStatus = async (orderId, newStatus, userEmail, orderNumber) => {
+  const [trackingInfo, setTrackingInfo] = useState({ id: null, number: '', carrier: 'Coordinadora' });
+
+  const handleUpdateStatus = async (orderId, newStatus) => {
     setUpdatingId(orderId);
     try {
-      const orderRef = doc(db, 'orders', orderId);
-      await updateDoc(orderRef, { status: newStatus });
-      
+      await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      alert(`Pedido actualizado a: ${newStatus}`);
+    } catch (error) {
+      console.error("Error al actualizar estado:", error);
+      alert("Error al actualizar el estado del pedido.");
+    } finally {
+      setUpdatingId(null);
+    }
+  };
 
+  const handleDispatch = async (e) => {
+    e.preventDefault();
+    const { id, number, carrier } = trackingInfo;
+    if (!number) return alert("Ingresa el número de guía");
+    
+    setUpdatingId(id);
+    try {
+      const order = orders.find(o => o.id === id);
+      await updateDoc(doc(db, 'orders', id), { 
+        status: 'Despachado',
+        trackingNumber: number,
+        carrier: carrier
+      });
+
+      // Notificar al cliente con su guía
       await addDoc(collection(db, 'mail'), {
-        to: [userEmail],
+        to: [order.userEmail],
         message: {
-          subject: `Actualización de tu pedido DÚO DREAMS: ${orderNumber}`,
+          subject: `📦 ¡Tu pedido ha sido despachado! - ${order.orderNumber}`,
           html: `
-            <div style="font-family: sans-serif; padding: 20px;">
-              <h2 style="color: #c4a484;">Novedades en tu pedido</h2>
-              <p>El estado de tu pedido <b>${orderNumber}</b> ha cambiado a: <b style="text-transform: uppercase;">${newStatus}</b>.</p>
+            <div style="font-family: sans-serif; padding: 20px; color: #1e293b;">
+              <h1 style="color: #c4a484;">¡Tu pedido va en camino!</h1>
+              <p>Hola, tu pedido <b>${order.orderNumber}</b> ya ha sido entregado a la transportadora.</p>
+              <div style="background: #f8fafc; padding: 20px; border-radius: 15px; border: 1px solid #f1f5f9; margin: 20px 0;">
+                <p style="margin: 0; font-size: 14px;"><b>Transportadora:</b> ${carrier}</p>
+                <p style="margin: 10px 0 0 0; font-size: 16px;"><b>Número de Guía:</b> <span style="color: #B76E79; font-weight: bold;">${number}</span></p>
+              </div>
+              <p>Pronto estarás disfrutando de tus productos DÚO DREAMS.</p>
+              <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 20px 0;" />
+              <p style="font-size: 12px; color: #94a3b8;">DÚO DREAMS - Tienda Oficial</p>
             </div>
           `
         }
       });
 
-    } catch (error) {
-      console.error("Error al actualizar estado:", error);
-      alert("Error al actualizar el estado del pedido.");
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Despachado', trackingNumber: number, carrier } : o));
+      setTrackingInfo({ id: null, number: '', carrier: 'Coordinadora' });
+      alert("Pedido despachado y cliente notificado.");
+    } catch (e) {
+      alert("Error al despachar: " + e.message);
     } finally {
       setUpdatingId(null);
     }
@@ -219,10 +251,9 @@ const AdminDashboard = () => {
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                           order.status === 'Validación de Pago' ? 'bg-red-100 text-red-600 animate-pulse' :
-                          order.status === 'Recibido' ? 'bg-blue-100 text-blue-600' :
-                          order.status === 'En Proceso' ? 'bg-amber-100 text-amber-600' :
                           order.status === 'Despachado' ? 'bg-purple-100 text-purple-600' :
-                          order.status === 'Pagado' ? 'bg-green-100 text-green-600' : 'bg-gray-100'
+                          order.status === 'Entregado' ? 'bg-green-100 text-green-600' :
+                          order.status === 'Pagado' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100'
                         }`}>
                           {order.status}
                         </span>
@@ -233,32 +264,71 @@ const AdminDashboard = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                        <div className="flex gap-1 flex-wrap">
-                          {order.status === 'Validación de Pago' ? (
-                            <button
-                              disabled={updatingId === order.id}
-                              onClick={() => handleConfirmPayment(order)}
-                              className="w-full bg-green-600 text-white px-3 py-2 rounded-xl text-[10px] font-black uppercase hover:bg-green-700 shadow-sm"
-                            >
-                              {updatingId === order.id ? 'Confirmando...' : '✅ Confirmar Pago'}
-                            </button>
-                          ) : (
-                            ['En Proceso', 'Despachado'].map(status => (
-                              <button
-                                key={status}
-                                disabled={order.status === status || updatingId === order.id}
-                                onClick={() => handleUpdateStatus(order.id, status, order.userEmail, order.orderNumber)}
-                                className={`px-2 py-1 rounded text-[9px] font-bold uppercase transition-all ${
-                                  order.status === status 
-                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                                    : 'bg-brand-dark text-white hover:bg-brand-gold'
-                                }`}
+                      {order.status === 'Validación de Pago' ? (
+                        <button 
+                          onClick={() => handleConfirmPayment(order)}
+                          className="bg-brand-gold text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-brand-dark transition-all"
+                          disabled={updatingId === order.id}
+                        >
+                          {updatingId === order.id ? '...' : 'Confirmar Pago'}
+                        </button>
+                      ) : (
+                        <div className="space-y-2">
+                          <select 
+                            value={order.status}
+                            onChange={(e) => {
+                              const newStatus = e.target.value;
+                              if (newStatus === 'Despachado') {
+                                setTrackingInfo({ ...trackingInfo, id: order.id });
+                              } else {
+                                handleUpdateStatus(order.id, newStatus);
+                              }
+                            }}
+                            className="bg-gray-50 border-none rounded-lg p-1 text-[10px] font-bold outline-none uppercase tracking-widest"
+                            disabled={updatingId === order.id}
+                          >
+                            <option value="Pagado">Pagado</option>
+                            <option value="Despachado">Despachado</option>
+                            <option value="Entregado">Entregado</option>
+                            <option value="Cancelado">Cancelado</option>
+                          </select>
+                          
+                          {/* Formulario de Guía si se selecciona Despachado */}
+                          {trackingInfo.id === order.id && (
+                            <form onSubmit={handleDispatch} className="mt-2 p-3 bg-brand-gold/5 rounded-xl border border-brand-gold/20 animate-fade-in space-y-2">
+                              <input 
+                                type="text"
+                                placeholder="Número de Guía"
+                                value={trackingInfo.number}
+                                onChange={(e) => setTrackingInfo({ ...trackingInfo, number: e.target.value })}
+                                className="w-full text-[10px] p-2 rounded-lg border-none outline-none focus:ring-1 focus:ring-brand-gold"
+                                autoFocus
+                              />
+                              <select 
+                                value={trackingInfo.carrier}
+                                onChange={(e) => setTrackingInfo({ ...trackingInfo, carrier: e.target.value })}
+                                className="w-full text-[10px] p-2 rounded-lg border-none outline-none"
                               >
-                                {status === updatingId ? '...' : status}
-                              </button>
-                            ))
+                                <option value="Coordinadora">Coordinadora</option>
+                                <option value="Servientrega">Servientrega</option>
+                                <option value="Envía">Envía</option>
+                                <option value="Interrapidisimo">Interrapidisimo</option>
+                              </select>
+                              <div className="flex gap-1">
+                                <button type="submit" className="flex-1 bg-brand-gold text-white text-[9px] py-1.5 rounded-lg font-black uppercase">Guardar</button>
+                                <button type="button" onClick={() => setTrackingInfo({ id: null, number: '', carrier: 'Coordinadora' })} className="px-2 text-[9px] text-slate-400 font-bold uppercase">X</button>
+                              </div>
+                            </form>
+                          )}
+                          
+                          {order.trackingNumber && (
+                            <div className="text-[9px] text-slate-400 font-bold flex flex-col">
+                              <span>Guía: {order.trackingNumber}</span>
+                              <span className="text-brand-gold/60 uppercase">{order.carrier}</span>
+                            </div>
                           )}
                         </div>
+                      )}
                       </td>
                     </tr>
                   ))}
