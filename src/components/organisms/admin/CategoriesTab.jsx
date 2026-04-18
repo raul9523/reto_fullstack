@@ -11,10 +11,21 @@ const CategoriesTab = () => {
 
   const fetchCategories = async () => {
     setIsLoading(true);
-    const snap = await getDocs(query(collection(db, 'categories'), orderBy('order', 'asc')));
-    const cats = [];
-    snap.forEach(doc => cats.push({ id: doc.id, ...doc.data() }));
-    setCategories(cats);
+    try {
+      const snap = await getDocs(collection(db, 'categories'));
+      const cats = [];
+      snap.forEach(doc => cats.push({ id: doc.id, ...doc.data() }));
+      
+      // Ordenar en memoria: los activos primero, y respetar el orden si existe
+      const sorted = cats.sort((a, b) => {
+        if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+        return (a.order || 99) - (b.order || 99);
+      });
+      
+      setCategories(sorted);
+    } catch (e) {
+      console.error("Error fetching categories:", e);
+    }
     setIsLoading(false);
   };
 
