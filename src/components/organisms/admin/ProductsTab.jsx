@@ -24,6 +24,7 @@ const ProductsTab = () => {
   });
 
   const [massDiscount, setMassDiscount] = useState({ category: 'all', percentage: 0 });
+  const [savingId, setSavingId] = useState(null);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -42,6 +43,24 @@ const ProductsTab = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleQuickUpdate = async (product, field, value) => {
+    setSavingId(product.id);
+    try {
+      const sanitizedValue = (field === 'price' || field === 'cost' || field === 'stockQuantity' || field === 'discount') 
+        ? parseFloat(value) || 0 
+        : value;
+      
+      await updateDoc(doc(db, 'products', product.id), { [field]: sanitizedValue });
+      
+      // Actualizar estado local sin recargar todo para velocidad
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, [field]: sanitizedValue } : p));
+    } catch (e) {
+      alert("Error al actualizar: " + e.message);
+    } finally {
+      setSavingId(null);
+    }
+  };
 
   const handleInputChange = (e) => {
     const { id, value, type, checked } = e.target;
@@ -284,15 +303,17 @@ const ProductsTab = () => {
 
       {/* Lista de Productos */}
       <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
-        <table className="w-full text-left text-sm">
+        <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50 text-[10px] uppercase tracking-widest font-bold text-slate-400">
             <tr>
               <th className="px-6 py-4">Producto</th>
               <th className="px-6 py-4">Categoría</th>
-              <th className="px-6 py-4">% Desc</th>
-              <th className="px-6 py-4">Estado</th>
-              <th className="px-6 py-4">Venta / Costo</th>
               <th className="px-6 py-4">Stock</th>
+              <th className="px-6 py-4">Venta</th>
+              <th className="px-6 py-4">Costo</th>
+              <th className="px-6 py-4">% Desc</th>
+              <th className="px-6 py-4">Promo</th>
+              <th className="px-6 py-4">Estado</th>
               <th className="px-6 py-4 text-right">Acciones</th>
             </tr>
           </thead>
@@ -302,43 +323,97 @@ const ProductsTab = () => {
                 <td className="px-6 py-4 flex items-center gap-3">
                   <img src={p.imageUrl} alt="" className="w-10 h-10 rounded-lg object-cover bg-gray-100" />
                   <div>
-                    <span className="font-bold text-brand-dark block">{p.name}</span>
-                    {p.isPromo && <span className="text-[8px] bg-brand-gold text-white px-1.5 py-0.5 rounded uppercase font-black">Promo</span>}
+                    <span className="font-bold text-brand-dark block text-xs truncate max-w-[120px]">{p.name}</span>
                   </div>
                 </td>
-                <td className="px-6 py-4 text-slate-500">{p.category || 'Sin Categoría'}</td>
-                <td className="px-6 py-4">
-                  {p.discount > 0 ? (
-                    <span className="bg-brand-gold/10 text-brand-gold px-2 py-1 rounded-lg font-black text-xs">
-                      {p.discount}%
-                    </span>
-                  ) : (
-                    <span className="text-slate-300 text-xs">-</span>
-                  )}
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${p.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
-                    {p.isActive ? 'Activo' : 'Inactivo'}
-                  </span>
-                </td>
-                <td className="px-6 py-4">
-                  <div className="font-bold text-brand-dark">${p.price.toLocaleString('es-CO')}</div>
-                  <div className="text-[10px] text-slate-400">Costo: ${p.cost?.toLocaleString('es-CO')}</div>
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`font-bold ${p.stockQuantity <= 0 ? 'text-red-500' : 'text-brand-dark'}`}>
-                    {p.stockQuantity}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-right space-x-2">
-                  <button onClick={() => handleEdit(p)} className="text-xs text-brand-gold font-bold hover:underline">Editar</button>
-                  <button 
-                    onClick={() => handleToggleActive(p)} 
-                    className={`text-xs font-bold hover:underline ${p.isActive ? 'text-slate-400' : 'text-green-500'}`}
+                
+                <td className="px-4 py-2">
+                  <select 
+                    value={p.category || ''}
+                    onChange={(e) => handleQuickUpdate(p, 'category', e.target.value)}
+                    className="text-xs bg-gray-50 border-none rounded-lg p-1 outline-none focus:ring-1 focus:ring-brand-gold w-full"
                   >
-                    {p.isActive ? 'Inactivar' : 'Activar'}
+                    <option value="">Sin Cat.</option>
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                </td>
+
+                <td className="px-4 py-2">
+                  <input 
+                    type="number"
+                    value={p.stockQuantity}
+                    onChange={(e) => handleQuickUpdate(p, 'stockQuantity', Number(e.target.value))}
+                    className="w-16 text-xs bg-gray-50 border-none rounded-lg p-1 font-bold text-center"
+                  />
+                </td>
+
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1">
+                    <span className="text-[10px] text-slate-400">$</span>
+                    <input 
+                      type="number"
+                      value={p.price}
+                      onChange={(e) => handleQuickUpdate(p, 'price', Number(e.target.value))}
+                      className="w-20 text-xs bg-transparent border-none font-bold outline-none"
+                    />
+                  </div>
+                </td>
+
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 border border-dashed border-gray-200">
+                    <span className="text-[10px] text-slate-400">$</span>
+                    <input 
+                      type="number"
+                      value={p.cost || 0}
+                      onChange={(e) => handleQuickUpdate(p, 'cost', Number(e.target.value))}
+                      className="w-20 text-xs bg-transparent border-none font-medium outline-none text-slate-500"
+                    />
+                  </div>
+                </td>
+
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1">
+                    <input 
+                      type="number"
+                      value={p.discount || 0}
+                      onChange={(e) => handleQuickUpdate(p, 'discount', Number(e.target.value))}
+                      className="w-12 text-xs bg-brand-gold/5 text-brand-gold border-none rounded-lg p-1 font-black text-center"
+                    />
+                    <span className="text-[10px] text-brand-gold">%</span>
+                  </div>
+                </td>
+
+                <td className="px-4 py-2 text-center">
+                  <input 
+                    type="checkbox"
+                    checked={p.isPromo}
+                    onChange={(e) => handleQuickUpdate(p, 'isPromo', e.target.checked)}
+                    className="w-4 h-4 accent-brand-gold cursor-pointer"
+                  />
+                </td>
+
+                <td className="px-4 py-2">
+                  <button 
+                    onClick={() => handleToggleActive(p)}
+                    className={`px-2 py-1 rounded-full text-[9px] font-black uppercase transition-all ${p.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}
+                  >
+                    {p.isActive ? 'Activo' : 'Inactivo'}
                   </button>
-                  <button onClick={() => handleDelete(p)} className="text-xs text-red-500 font-bold hover:underline">Borrar</button>
+                </td>
+
+                <td className="px-6 py-4 text-right flex items-center justify-end gap-3">
+                  {savingId === p.id ? (
+                    <div className="animate-spin h-4 w-4 border-2 border-brand-gold border-t-transparent rounded-full"></div>
+                  ) : (
+                    <>
+                      <button onClick={() => handleEdit(p)} className="p-2 hover:bg-brand-gold/10 rounded-full transition-colors group" title="Editar Detalles">
+                        <svg className="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+                      </button>
+                      <button onClick={() => handleDelete(p)} className="p-2 hover:bg-red-50 rounded-full transition-colors group" title="Eliminar">
+                        <svg className="w-4 h-4 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </>
+                  )}
                 </td>
               </tr>
             ))}
