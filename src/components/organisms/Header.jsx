@@ -1,8 +1,11 @@
 import React from 'react';
 import PropTypes from 'prop-types';
 import Button from '../atoms/Button';
+import useProductStore from '../../store/productStore';
 
 const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartClick }) => {
+  const { searchQuery, setSearchQuery } = useProductStore();
+
   return (
     <header className="bg-white border-b border-gray-100 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -14,12 +17,26 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
             <span className="text-2xl font-bold text-slate-800">Store</span>
           </div>
 
-          {/* Navigation Links (Desktop) */}
-          <nav className="hidden md:flex space-x-8">
-            <a href="#" className="text-slate-600 hover:text-brand-blue font-medium transition-colors">Products</a>
-            <a href="#" className="text-slate-600 hover:text-brand-blue font-medium transition-colors">Categories</a>
-            <a href="#" className="text-slate-600 hover:text-brand-blue font-medium transition-colors">About Us</a>
-          </nav>
+          {/* Search Bar */}
+          <div className="hidden md:flex flex-1 max-w-md mx-8">
+            <div className="relative w-full">
+              <input 
+                type="text" 
+                placeholder="Buscar productos..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-gray-50 border border-gray-200 rounded-full py-2 px-4 pl-10 focus:outline-none focus:ring-2 focus:ring-brand-blue focus:border-transparent transition-all"
+              />
+              <svg 
+                className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+          </div>
 
           {/* Actions / User Profile */}
           <div className="flex items-center space-x-4">
