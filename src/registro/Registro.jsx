@@ -128,11 +128,19 @@ const Registro = () => {
     try {
       await registerUser(email, password, extraData);
       alert("¡Registro exitoso! Sesión iniciada.");
-      // Redirigir al inicio simulando navegación
       window.location.href = '/';
     } catch (error) {
       console.error("Error al registrar:", error);
-      setAuthError("Hubo un error al registrar: " + error.message);
+      // Traducción de errores comunes de Firebase
+      if (error.code === 'auth/email-already-in-use') {
+        setAuthError("Este correo electrónico ya está registrado. Por favor, intenta iniciar sesión.");
+      } else if (error.code === 'auth/weak-password') {
+        setAuthError("La contraseña es muy débil. Debe tener al menos 6 caracteres.");
+      } else if (error.code === 'auth/invalid-email') {
+        setAuthError("El correo electrónico no es válido.");
+      } else {
+        setAuthError("Hubo un error al registrar: " + error.message);
+      }
     }
   };
 

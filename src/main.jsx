@@ -1,5 +1,6 @@
 import { StrictMode, useEffect } from 'react'
 import { createRoot } from 'react-dom/client'
+// Deployment Trigger: Secret verification
 import './main.css'
 import Home from './pages/Home.jsx';
 import Registro from './registro/Registro.jsx';
