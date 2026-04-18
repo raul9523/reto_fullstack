@@ -207,6 +207,17 @@ const ProductsTab = () => {
           >
             Aplicar
           </button>
+          <button 
+            onClick={() => {
+              if(confirm("¿Estás seguro de quitar TODOS los descuentos?")) {
+                setMassDiscount({ ...massDiscount, percentage: 0 });
+                handleApplyMassDiscount();
+              }
+            }}
+            className="border border-red-200 text-red-500 px-4 py-2 rounded-xl text-xs font-bold uppercase hover:bg-red-50 transition-all"
+          >
+            Quitar Descuentos
+          </button>
         </div>
       </div>
 
@@ -278,6 +289,7 @@ const ProductsTab = () => {
             <tr>
               <th className="px-6 py-4">Producto</th>
               <th className="px-6 py-4">Categoría</th>
+              <th className="px-6 py-4">% Desc</th>
               <th className="px-6 py-4">Estado</th>
               <th className="px-6 py-4">Venta / Costo</th>
               <th className="px-6 py-4">Stock</th>
@@ -296,13 +308,22 @@ const ProductsTab = () => {
                 </td>
                 <td className="px-6 py-4 text-slate-500">{p.category || 'Sin Categoría'}</td>
                 <td className="px-6 py-4">
+                  {p.discount > 0 ? (
+                    <span className="bg-brand-gold/10 text-brand-gold px-2 py-1 rounded-lg font-black text-xs">
+                      {p.discount}%
+                    </span>
+                  ) : (
+                    <span className="text-slate-300 text-xs">-</span>
+                  )}
+                </td>
+                <td className="px-6 py-4">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${p.isActive ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}`}>
                     {p.isActive ? 'Activo' : 'Inactivo'}
                   </span>
                 </td>
                 <td className="px-6 py-4">
                   <div className="font-bold text-brand-dark">${p.price.toLocaleString('es-CO')}</div>
-                  {p.discount > 0 && <div className="text-[10px] text-brand-gold font-bold">-{p.discount}%</div>}
+                  <div className="text-[10px] text-slate-400">Costo: ${p.cost?.toLocaleString('es-CO')}</div>
                 </td>
                 <td className="px-6 py-4">
                   <span className={`font-bold ${p.stockQuantity <= 0 ? 'text-red-500' : 'text-brand-dark'}`}>
