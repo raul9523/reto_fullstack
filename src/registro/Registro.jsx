@@ -146,8 +146,8 @@ const Registro = () => {
   }
 
   return (
-    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-2xl w-full space-y-8 bg-white p-10 rounded-2xl shadow-dna border border-gray-100">
+    <div className="min-h-screen flex flex-col justify-center items-center bg-gray-50 py-8 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl w-full space-y-8 bg-white p-6 sm:p-10 rounded-2xl shadow-dna border border-gray-100">
         
         <div>
           <h2 className="text-center text-3xl font-extrabold text-slate-800">

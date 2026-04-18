@@ -49,7 +49,7 @@ const Home = () => {
 
       {/* Controles de Paginación */}
       {!isLoading && totalPages > 1 && (
-        <div className="flex justify-center items-center mt-12 space-x-2">
+        <div className="flex justify-center items-center mt-12 mb-10 space-x-2 flex-wrap gap-y-4">
           <button
             onClick={() => handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
@@ -59,10 +59,11 @@ const Home = () => {
                 : 'bg-white text-slate-700 border border-gray-200 hover:bg-gray-50'
             }`}
           >
-            Anterior
+            <span className="hidden sm:inline">Anterior</span>
+            <span className="sm:inline">&larr;</span>
           </button>
           
-          <div className="flex space-x-1">
+          <div className="flex space-x-1 flex-wrap justify-center">
             {Array.from({ length: totalPages }, (_, i) => i + 1).map((number) => (
               <button
                 key={number}
@@ -87,7 +88,8 @@ const Home = () => {
                 : 'bg-white text-slate-700 border border-gray-200 hover:bg-gray-50'
             }`}
           >
-            Siguiente
+            <span className="hidden sm:inline">Siguiente</span>
+            <span className="sm:inline">&rarr;</span>
           </button>
         </div>
       )}

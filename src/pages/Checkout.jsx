@@ -105,8 +105,8 @@ const Checkout = () => {
 
   return (
     <MainLayout cartItemCount={itemCount}>
-      <div className="max-w-7xl mx-auto py-8">
-        <h1 className="text-3xl font-bold text-slate-800 mb-8">Revisión de tu Pedido</h1>
+      <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <h1 className="text-2xl lg:text-3xl font-bold text-slate-800 mb-8">Revisión de tu Pedido</h1>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Lado Izquierdo: Información y Pago */}
