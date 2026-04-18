@@ -68,30 +68,36 @@ const Home = () => {
       ) : (
         <div className="space-y-20">
           {/* Categorías Dinámicas */}
-          {categories.map((cat) => {
-            const catProducts = filteredProducts.filter(p => p.category === cat.name);
-            if (catProducts.length === 0) return null;
+          {categories.length > 0 ? (
+            categories.map((cat) => {
+              const catProducts = (filteredProducts || []).filter(p => p.category === cat.name);
+              if (catProducts.length === 0) return null;
 
-            return (
-              <section key={cat.id}>
-                <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-4">
-                  <div>
-                    <h2 className="text-3xl font-bold text-brand-dark">{cat.name}</h2>
-                    <p className="text-slate-500 font-medium tracking-tight">Selección exclusiva de nuestra categoría {cat.name.toLowerCase()}</p>
+              return (
+                <section key={cat.id}>
+                  <div className="flex justify-between items-end mb-8 border-b border-gray-100 pb-4">
+                    <div>
+                      <h2 className="text-3xl font-bold text-brand-dark">{cat.name}</h2>
+                      <p className="text-slate-500 font-medium tracking-tight">Selección exclusiva de nuestra categoría {cat.name.toLowerCase()}</p>
+                    </div>
                   </div>
-                </div>
-                <ProductGallery 
-                  products={catProducts.slice(0, 4)} 
-                  isLoading={false} 
-                  onAddToCart={(product) => addToCart(product, 1)} 
-                />
-              </section>
-            );
-          })}
+                  <ProductGallery 
+                    products={catProducts.slice(0, 4)} 
+                    isLoading={false} 
+                    onAddToCart={(product) => addToCart(product, 1)} 
+                  />
+                </section>
+              );
+            })
+          ) : (
+            <div className="text-center py-20 text-slate-500">
+              <p className="text-xl italic">Configurando tu escaparate dinámico...</p>
+            </div>
+          )}
 
           {/* Sección Novedades (Sin Categoría) */}
           {(() => {
-            const uncatProducts = filteredProducts.filter(p => !p.category || p.category === '');
+            const uncatProducts = (filteredProducts || []).filter(p => !p.category || p.category === '');
             if (uncatProducts.length === 0) return null;
             return (
               <section>

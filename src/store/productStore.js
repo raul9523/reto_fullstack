@@ -38,14 +38,14 @@ const useProductStore = create((set, get) => ({
 
   // Acción para descargar los productos reales desde Firestore
   fetchProducts: async () => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, products: [], filteredProducts: [] });
     try {
       const querySnapshot = await getDocs(collection(db, "products"));
       const allProducts = [];
       querySnapshot.forEach((doc) => {
         allProducts.push({ id: doc.id, ...doc.data() });
       });
-
+      
       // Filtrar por activos para la tienda
       const activeProducts = allProducts.filter(p => p.isActive !== false);
       
@@ -53,7 +53,7 @@ const useProductStore = create((set, get) => ({
       const sortedProducts = activeProducts.sort((a, b) => {
         if (a.isPromo && !b.isPromo) return -1;
         if (!a.isPromo && b.isPromo) return 1;
-        return 0;
+        return (a.order || 0) - (b.order || 0);
       });
 
       set({ 
@@ -61,9 +61,6 @@ const useProductStore = create((set, get) => ({
         filteredProducts: sortedProducts,
         isLoading: false 
       });
-      
-      get().applyFilters();
-      
     } catch (error) {
       console.error("Error fetching products:", error);
       set({ error: error.message, isLoading: false });
