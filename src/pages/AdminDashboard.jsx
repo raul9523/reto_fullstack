@@ -14,10 +14,19 @@ const UsersTab = React.lazy(() => import('../components/organisms/admin/UsersTab
 const AdminDashboard = () => {
   const { currentUser } = useUserStore();
   const { itemCount } = useCartStore();
-  const [activeTab, setActiveTab] = useState('dashboard');
+  
+  // Persistir pestaña activa
+  const [activeTab, setActiveTab] = useState(() => {
+    return localStorage.getItem('adminActiveTab') || 'dashboard';
+  });
+
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+
+  useEffect(() => {
+    localStorage.setItem('adminActiveTab', activeTab);
+  }, [activeTab]);
 
   const MASTER_ADMIN = 'raulpte0211@gmail.com';
   const hasAccess = currentUser && (currentUser.email === MASTER_ADMIN || currentUser.role === 'admin');

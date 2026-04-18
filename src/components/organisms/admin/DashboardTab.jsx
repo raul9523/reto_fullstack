@@ -157,11 +157,11 @@ const DashboardTab = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         {/* Gráfica Rendimiento */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm min-h-[400px]">
           <h3 className="text-lg font-bold text-brand-dark mb-8">Rendimiento Histórico</h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={chartData}>
+            <ResponsiveContainer width="100%" height={300}>
+              <LineChart data={chartData} margin={{ top: 5, right: 20, bottom: 5, left: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} />
                 <YAxis axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} tickFormatter={(value) => `$${value/1000}k`} />
@@ -177,11 +177,11 @@ const DashboardTab = () => {
         </div>
 
         {/* Gráfica Geográfica */}
-        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm">
+        <div className="bg-white p-8 rounded-3xl border border-gray-100 shadow-sm min-h-[400px]">
           <h3 className="text-lg font-bold text-brand-dark mb-8">Ubicación de Clientes</h3>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={cityData} layout="vertical">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={cityData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f0f0f0" />
                 <XAxis type="number" hide />
                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fontSize: 10, fill: '#94a3b8'}} width={100} />
