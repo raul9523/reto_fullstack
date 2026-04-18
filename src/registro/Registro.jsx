@@ -43,6 +43,13 @@ const Registro = () => {
     email: '',
     phone: '',
     address: '',
+    addressParts: {
+      viaType: 'Calle',
+      numeroPrincipal: '',
+      numeroSecundario: '',
+      numeroPlaca: '',
+      complemento: ''
+    },
     birthDate: '',
     password: ''
   });
@@ -288,16 +295,94 @@ const Registro = () => {
               />
             </div>
 
-            {/* Dirección */}
-            <div className="sm:col-span-2">
-              <Input
-                id="address"
-                label="Dirección"
-                placeholder="Calle 123 # 45-67"
-                value={formData.address}
-                onChange={handleChange}
-                required
+            {/* Dirección Estándar DIAN */}
+            <div className="sm:col-span-2 space-y-2">
+              <label className="block text-slate-400 text-lg mb-1">Dirección (Nomenclatura DIAN)</label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <select
+                  id="viaType"
+                  value={formData.addressParts?.viaType || 'Calle'}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      addressParts: { ...prev.addressParts, viaType: val },
+                      address: `${val} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
+                    }));
+                  }}
+                  className="input-dna bg-white"
+                >
+                  <option value="Calle">Calle</option>
+                  <option value="Carrera">Carrera</option>
+                  <option value="Avenida">Avenida</option>
+                  <option value="Diagonal">Diagonal</option>
+                  <option value="Transversal">Transversal</option>
+                  <option value="Circular">Circular</option>
+                </select>
+                
+                <input
+                  type="text"
+                  placeholder="Número"
+                  className="input-dna"
+                  value={formData.addressParts?.numeroPrincipal || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      addressParts: { ...prev.addressParts, numeroPrincipal: val },
+                      address: `${prev.addressParts?.viaType || 'Calle'} ${val} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
+                    }));
+                  }}
+                  required
+                />
+
+                <input
+                  type="text"
+                  placeholder="# Cruce"
+                  className="input-dna"
+                  value={formData.addressParts?.numeroSecundario || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      addressParts: { ...prev.addressParts, numeroSecundario: val },
+                      address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${val} - ${prev.addressParts?.numeroPlaca || ''} ${prev.addressParts?.complemento || ''}`.trim()
+                    }));
+                  }}
+                  required
+                />
+
+                <input
+                  type="text"
+                  placeholder="- Placa"
+                  className="input-dna"
+                  value={formData.addressParts?.numeroPlaca || ''}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setFormData(prev => ({
+                      ...prev,
+                      addressParts: { ...prev.addressParts, numeroPlaca: val },
+                      address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${val} ${prev.addressParts?.complemento || ''}`.trim()
+                    }));
+                  }}
+                  required
+                />
+              </div>
+              <input
+                type="text"
+                placeholder="Complemento (Apto, Local, Interior...)"
+                className="input-dna w-full"
+                value={formData.addressParts?.complemento || ''}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setFormData(prev => ({
+                    ...prev,
+                    addressParts: { ...prev.addressParts, complemento: val },
+                    address: `${prev.addressParts?.viaType || 'Calle'} ${prev.addressParts?.numeroPrincipal || ''} # ${prev.addressParts?.numeroSecundario || ''} - ${prev.addressParts?.numeroPlaca || ''} ${val}`.trim()
+                  }));
+                }}
               />
+              <p className="text-[10px] text-slate-400 italic">Vista previa: {formData.address}</p>
             </div>
 
             {/* Contraseña */}
