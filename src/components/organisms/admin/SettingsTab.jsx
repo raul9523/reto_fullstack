@@ -277,6 +277,58 @@ const SettingsTab = () => {
         <p className="text-xs text-slate-400 italic">Los cambios de activar/desactivar se guardan con el botón principal.</p>
       </div>
 
+      {/* Datos de Transferencia Bancaria */}
+      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Datos para Transferencia Bancaria</h3>
+          <p className="text-xs text-slate-400 mt-1">El cliente verá esta información al seleccionar Transferencia Bancaria en el checkout.</p>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Input
+            label="Nombre del Banco"
+            placeholder="Ej: Bancolombia, Davivienda…"
+            value={localSettings.transferInfo?.bankName || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, transferInfo: { ...prev.transferInfo, bankName: e.target.value } }))}
+          />
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo de Cuenta</label>
+            <select
+              value={localSettings.transferInfo?.accountType || 'Ahorros'}
+              onChange={(e) => setLocalSettings(prev => ({ ...prev, transferInfo: { ...prev.transferInfo, accountType: e.target.value } }))}
+              className="w-full bg-white border border-gray-100 rounded-xl px-4 py-2.5 text-sm font-medium outline-none focus:ring-2 focus:ring-brand-gold/20"
+            >
+              <option value="Ahorros">Ahorros</option>
+              <option value="Corriente">Corriente</option>
+            </select>
+          </div>
+          <Input
+            label="Número de Cuenta"
+            placeholder="Ej: 123-456789-01"
+            value={localSettings.transferInfo?.accountNumber || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, transferInfo: { ...prev.transferInfo, accountNumber: e.target.value } }))}
+          />
+          <Input
+            label="Titular de la Cuenta"
+            placeholder="Nombre o razón social"
+            value={localSettings.transferInfo?.accountHolder || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, transferInfo: { ...prev.transferInfo, accountHolder: e.target.value } }))}
+          />
+          <Input
+            label="Correo para recibir comprobantes"
+            type="email"
+            placeholder="pagos@tutienda.com"
+            value={localSettings.transferInfo?.receiptEmail || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, transferInfo: { ...prev.transferInfo, receiptEmail: e.target.value } }))}
+          />
+          <Input
+            label="Instrucciones adicionales (opcional)"
+            placeholder="Ej: Indicar número de pedido en la descripción"
+            value={localSettings.transferInfo?.instructions || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, transferInfo: { ...prev.transferInfo, instructions: e.target.value } }))}
+          />
+        </div>
+      </div>
+
       {/* Notificaciones por Correo */}
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-6">
         <div>

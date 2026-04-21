@@ -11,6 +11,14 @@ const DEFAULT_SETTINGS = {
     transferencia: true,
     contraentrega: true
   },
+  transferInfo: {
+    bankName: '',
+    accountType: 'Ahorros',
+    accountNumber: '',
+    accountHolder: '',
+    receiptEmail: '',
+    instructions: ''
+  },
   emailConfig: {
     user: '',
     pass: ''
@@ -39,7 +47,8 @@ export const useSettingsStore = create((set) => ({
           ...docSnap.data(),
           emailConfig: { ...DEFAULT_SETTINGS.emailConfig, ...(docSnap.data().emailConfig || {}) },
           emailNotifications: { ...DEFAULT_SETTINGS.emailNotifications, ...(docSnap.data().emailNotifications || {}) },
-          paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(docSnap.data().paymentMethods || {}) }
+          paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(docSnap.data().paymentMethods || {}) },
+          transferInfo: { ...DEFAULT_SETTINGS.transferInfo, ...(docSnap.data().transferInfo || {}) }
         };
         set({ settings: merged, isLoading: false });
       } else {

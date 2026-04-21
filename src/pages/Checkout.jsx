@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
 import { useUserStore } from '../store/userStore';
@@ -44,9 +44,27 @@ const Checkout = () => {
   const [isConfirming, setIsConfirming] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
 
+  // Effect 1: fetch settings + payment methods once on mount
   useEffect(() => {
     fetchSettings();
-    // Si hay usuario y se elige misma dirección, precargar sus datos
+    const fetchPMs = async () => {
+      try {
+        const querySnapshot = await getDocs(collection(db, "payment_methods"));
+        const methods = [];
+        querySnapshot.forEach((d) => methods.push({ id: d.id, ...d.data() }));
+        methods.sort((a, b) => (a.order ?? 99) - (b.order ?? 99));
+        setPaymentMethods(methods);
+      } catch (error) {
+        console.error("Error fetching payment methods:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchPMs();
+  }, []);
+
+  // Effect 2: pre-fill shipping info from user profile
+  useEffect(() => {
     if (currentUser && isSameAddress) {
       setShippingInfo(prev => ({
         ...prev,
@@ -57,37 +75,21 @@ const Checkout = () => {
         address: currentUser.address || ''
       }));
     } else if (!isSameAddress) {
-      // Limpiar campos si decide cambiar dirección para que los llene desde cero
-      setShippingInfo({
-        recipientName: '',
-        recipientPhone: '',
-        department: 'Antioquia',
-        city: 'Medellín',
-        address: '',
-        notes: ''
-      });
+      setShippingInfo({ recipientName: '', recipientPhone: '', department: 'Antioquia', city: 'Medellín', address: '', notes: '' });
     }
+  }, [currentUser, isSameAddress]);
 
-    const fetchPaymentMethods = async () => {
-      try {
-        const querySnapshot = await getDocs(collection(db, "payment_methods"));
-        const methods = [];
-        querySnapshot.forEach((doc) => {
-          if (settings.paymentMethods[doc.id] !== false) {
-            methods.push({ id: doc.id, ...doc.data() });
-          }
-        });
-        setPaymentMethods(methods);
-        if (methods.length > 0) setSelectedPaymentMethod(methods[0].id);
-      } catch (error) {
-        console.error("Error fetching payment methods:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+  // Derive visible methods (respects admin toggles) — sets initial selection once
+  const visibleMethods = useMemo(
+    () => paymentMethods.filter(m => settings.paymentMethods?.[m.id] !== false),
+    [paymentMethods, settings.paymentMethods]
+  );
 
-    fetchPaymentMethods();
-  }, [currentUser, settings.paymentMethods, isSameAddress]);
+  useEffect(() => {
+    if (visibleMethods.length > 0 && !selectedPaymentMethod) {
+      setSelectedPaymentMethod(visibleMethods[0].id);
+    }
+  }, [visibleMethods]);
 
   const handleInputChange = (e) => {
     const { id, value } = e.target;
@@ -96,10 +98,11 @@ const Checkout = () => {
 
   const handleConfirmOrder = async () => {
     if (items.length === 0) return;
-    if (selectedPaymentMethod === 'transfer' && !shippingInfo.notes) {
-      // Usaremos el campo 'notes' o uno nuevo para el comprobante
+    if (selectedPaymentMethod === 'transferencia' && !shippingInfo.receiptUrl) {
+      alert('Por favor ingresa el URL o número del comprobante de pago.');
+      return;
     }
-    
+
     setIsConfirming(true);
     try {
       const isBackorder = items.some(item => item.isBackorder);
@@ -361,86 +364,126 @@ const Checkout = () => {
                   <div className="h-12 bg-gray-100 rounded-xl"></div>
                 </div>
               ) : (
-                  <div className="space-y-4">
-                    {/* Botón Oficial PSE */}
-                    <div 
-                      onClick={() => setSelectedPaymentMethod('pse')}
-                      className={`relative flex items-center justify-between p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
-                        selectedPaymentMethod === 'pse' 
-                          ? 'border-blue-600 bg-blue-50 shadow-md' 
-                          : 'border-gray-100 hover:border-gray-200 bg-white'
-                      }`}
-                    >
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 border border-gray-100">
-                          <img 
-                            src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Logo_PSE.png" 
-                            alt="PSE" 
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-                        <div>
-                          <span className="block font-black text-blue-900 text-sm italic tracking-tighter">PAGOS SEGUROS EN LÍNEA</span>
-                          <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded-full">Oficial PSE</span>
-                        </div>
-                      </div>
-                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-                        selectedPaymentMethod === 'pse' ? 'border-blue-600 bg-blue-600' : 'border-gray-200'
-                      }`}>
-                        {selectedPaymentMethod === 'pse' && (
-                          <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                        )}
-                      </div>
-                      
-                      {selectedPaymentMethod === 'pse' && (
-                        <div className="absolute -top-3 -right-2 bg-blue-600 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce uppercase">
-                          Recomendado
-                        </div>
-                      )}
-                    </div>
+                <div className="space-y-4">
+                  {visibleMethods.map(method => {
+                    const isSelected = selectedPaymentMethod === method.id;
 
-                    {/* Transferencia Bancaria */}
-                    <div 
-                      onClick={() => setSelectedPaymentMethod('transfer')}
-                      className={`p-5 border rounded-2xl cursor-pointer transition-all ${
-                        selectedPaymentMethod === 'transfer' ? 'border-brand-gold bg-blue-50/50' : 'border-gray-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center">
-                          <div className="w-10 h-10 bg-white rounded-lg border border-gray-100 flex items-center justify-center mr-3 text-brand-gold">
-                            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                    // PSE gets special official branding
+                    if (method.id === 'pse') {
+                      return (
+                        <div
+                          key="pse"
+                          onClick={() => setSelectedPaymentMethod('pse')}
+                          className={`relative flex items-center justify-between p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                            isSelected ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-gray-100 hover:border-gray-200 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 border border-gray-100">
+                              <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Logo_PSE.png" alt="PSE" className="w-full h-full object-contain" />
+                            </div>
+                            <div>
+                              <span className="block font-black text-blue-900 text-sm italic tracking-tighter">PAGOS SEGUROS EN LÍNEA</span>
+                              <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded-full">Oficial PSE</span>
+                            </div>
+                          </div>
+                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-200'}`}>
+                            {isSelected && (
+                              <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                              </svg>
+                            )}
+                          </div>
+                          {isSelected && (
+                            <div className="absolute -top-3 -right-2 bg-blue-600 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce uppercase">
+                              Recomendado
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Transferencia Bancaria — shows configurable bank info
+                    if (method.id === 'transferencia') {
+                      const ti = settings.transferInfo || {};
+                      const hasInfo = ti.bankName || ti.accountNumber;
+                      return (
+                        <div
+                          key="transferencia"
+                          onClick={() => setSelectedPaymentMethod('transferencia')}
+                          className={`p-5 border-2 rounded-2xl cursor-pointer transition-all ${isSelected ? 'border-brand-gold bg-amber-50/30' : 'border-gray-100 hover:border-gray-200'}`}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 bg-white rounded-lg border border-gray-100 flex items-center justify-center text-brand-gold">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" /></svg>
+                              </div>
+                              <div>
+                                <span className="block font-bold text-slate-800 text-sm">{method.label}</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-bold tracking-tight">Sujeto a Validación</span>
+                              </div>
+                            </div>
+                            <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-brand-gold' : 'border-gray-200'}`}>
+                              {isSelected && <div className="w-2.5 h-2.5 bg-brand-gold rounded-full" />}
+                            </div>
+                          </div>
+
+                          {isSelected && (
+                            <div className="space-y-3 animate-fade-in mt-4 pl-1">
+                              {hasInfo ? (
+                                <div className="text-[11px] text-slate-600 bg-white p-4 rounded-xl border border-dashed border-brand-gold/30 leading-relaxed space-y-1">
+                                  {ti.bankName && <p><b>Banco:</b> {ti.bankName}</p>}
+                                  {ti.accountType && ti.accountNumber && (
+                                    <p><b>Cuenta {ti.accountType}:</b> {ti.accountNumber}</p>
+                                  )}
+                                  {ti.accountHolder && <p><b>Titular:</b> {ti.accountHolder}</p>}
+                                  {ti.receiptEmail && (
+                                    <p><b>Envía el comprobante a:</b> <span className="text-brand-gold">{ti.receiptEmail}</span></p>
+                                  )}
+                                  {ti.instructions && <p className="text-slate-400 italic mt-2">{ti.instructions}</p>}
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-slate-400 bg-white p-3 rounded-xl border border-dashed border-gray-200 italic">
+                                  El administrador aún no ha configurado los datos bancarios. Contáctanos para recibir instrucciones de pago.
+                                </p>
+                              )}
+                              <Input
+                                id="receiptUrl"
+                                label="URL del Comprobante o # de Transacción"
+                                value={shippingInfo.receiptUrl || ''}
+                                onChange={handleInputChange}
+                                placeholder="Ej: https://imgur.com/foto-pago o N° de transacción"
+                                required
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+
+                    // Generic card for any other method (contra entrega, nequi, etc.)
+                    return (
+                      <div
+                        key={method.id}
+                        onClick={() => setSelectedPaymentMethod(method.id)}
+                        className={`flex items-center justify-between p-5 border-2 rounded-2xl cursor-pointer transition-all ${isSelected ? 'border-brand-gold bg-amber-50/20' : 'border-gray-100 hover:border-gray-200'}`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-white rounded-lg border border-gray-100 flex items-center justify-center text-xl">
+                            {method.icon || '💳'}
                           </div>
                           <div>
-                            <span className="block font-bold text-slate-800 text-sm">Transferencia Bancaria</span>
-                            <span className="text-[10px] text-slate-500 uppercase font-bold tracking-tight">Sujeto a Validación</span>
+                            <span className="block font-bold text-slate-800 text-sm">{method.label}</span>
+                            {method.description && <span className="text-[10px] text-slate-400">{method.description}</span>}
                           </div>
                         </div>
-                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedPaymentMethod === 'transfer' ? 'border-brand-gold' : 'border-gray-200'}`}>
-                          {selectedPaymentMethod === 'transfer' && <div className="w-2.5 h-2.5 bg-brand-gold rounded-full"></div>}
+                        <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${isSelected ? 'border-brand-gold' : 'border-gray-200'}`}>
+                          {isSelected && <div className="w-2.5 h-2.5 bg-brand-gold rounded-full" />}
                         </div>
                       </div>
-
-                      {selectedPaymentMethod === 'transfer' && (
-                        <div className="space-y-3 animate-fade-in pl-1">
-                          <p className="text-[10px] text-slate-500 bg-white p-3 rounded-xl border border-dashed border-gray-200 leading-relaxed">
-                            Realiza tu transferencia a la cuenta <b>Ahorros Bancolombia #123-456789-01</b> a nombre de DÚO DREAMS. 
-                            Luego, pega el enlace del comprobante o número de transacción abajo.
-                          </p>
-                          <Input 
-                            id="receiptUrl"
-                            label="URL del Comprobante o # de Transacción"
-                            value={shippingInfo.receiptUrl || ''}
-                            onChange={handleInputChange}
-                            placeholder="Ej: https://imgur.com/foto-pago"
-                            required
-                          />
-                        </div>
-                      )}
-                    </div>
-                  </div>
+                    );
+                  })}
+                </div>
               )}
             </section>
           </div>
