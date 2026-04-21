@@ -52,6 +52,7 @@ export const useUserStore = create(
           const userData = {
             ...extraData,
             email: firebaseUser.email,
+            role: 'cliente',
             createdAt: new Date().toISOString()
           };
           

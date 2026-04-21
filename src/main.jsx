@@ -1,16 +1,22 @@
-import { StrictMode, useEffect } from 'react'
+import { StrictMode, useEffect, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
-// Deployment Trigger: Secret verification
 import './main.css'
-import Home from './pages/Home.jsx';
-import Registro from './registro/Registro.jsx';
-import Login from './registro/Login.jsx';
-import Checkout from './pages/Checkout.jsx';
-import UserOrders from './pages/UserOrders.jsx';
-import AdminDashboard from './pages/AdminDashboard.jsx';
 import { useUserStore } from './store/userStore';
 
-// Router temporal ultra simple
+const Home = lazy(() => import('./pages/Home.jsx'));
+const Registro = lazy(() => import('./registro/Registro.jsx'));
+const Login = lazy(() => import('./registro/Login.jsx'));
+const Checkout = lazy(() => import('./pages/Checkout.jsx'));
+const UserOrders = lazy(() => import('./pages/UserOrders.jsx'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard.jsx'));
+
+const PageFallback = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
+    <div style={{ width: 32, height: 32, border: '3px solid #c8a96e', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+    <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+  </div>
+);
+
 const App = () => {
   const { initAuthListener } = useUserStore();
 
@@ -19,27 +25,20 @@ const App = () => {
     return () => unsubscribe();
   }, [initAuthListener]);
 
-  if (window.location.pathname === '/registro') {
-    return <Registro />;
-  }
-  
-  if (window.location.pathname === '/login') {
-    return <Login />;
-  }
-  
-  if (window.location.pathname === '/checkout') {
-    return <Checkout />;
-  }
+  const path = window.location.pathname;
 
-  if (window.location.pathname === '/mis-pedidos') {
-    return <UserOrders />;
-  }
+  let Page = Home;
+  if (path === '/registro') Page = Registro;
+  else if (path === '/login') Page = Login;
+  else if (path === '/checkout') Page = Checkout;
+  else if (path === '/mis-pedidos') Page = UserOrders;
+  else if (path === '/admin') Page = AdminDashboard;
 
-  if (window.location.pathname === '/admin') {
-    return <AdminDashboard />;
-  }
-
-  return <Home />;
+  return (
+    <Suspense fallback={<PageFallback />}>
+      <Page />
+    </Suspense>
+  );
 };
 
 createRoot(document.getElementById('root')).render(

@@ -4,6 +4,7 @@ import { db } from '../firebase/firebase.config';
 import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
 import MainLayout from '../components/templates/MainLayout';
+import { seedInitialData } from '../firebase/seedData';
 
 const DashboardTab = React.lazy(() => import('../components/organisms/admin/DashboardTab'));
 const ProductsTab = React.lazy(() => import('../components/organisms/admin/ProductsTab'));
@@ -35,6 +36,7 @@ const AdminDashboard = () => {
   
   useEffect(() => {
     if (!hasAccess) return;
+    seedInitialData();
 
     const fetchAllOrders = async () => {
       try {
@@ -83,7 +85,9 @@ const AdminDashboard = () => {
         message: `Tu pago para el pedido ${order.orderNumber} ha sido validado. ¡Estamos preparando tu envío!`,
         createdAt: new Date().toISOString(),
         read: false,
-        type: 'order_update'
+        type: 'order_update',
+        sendEmail: true,
+        notificationType: 'payment_confirmed'
       });
 
       alert("¡Pago confirmado y cliente notificado en su panel!");
@@ -132,7 +136,9 @@ const AdminDashboard = () => {
         message: `Tu pedido ${order.orderNumber} ya va en camino por ${carrier}. Guía: ${number}`,
         createdAt: new Date().toISOString(),
         read: false,
-        type: 'shipping_update'
+        type: 'shipping_update',
+        sendEmail: true,
+        notificationType: 'dispatched'
       });
 
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: 'Despachado', trackingNumber: number, carrier } : o));

@@ -109,8 +109,10 @@ const Checkout = () => {
       const isInstantPayment = selectedPaymentMethod === 'pse' || selectedPaymentMethod === 'card';
       const initialStatus = isBackorder ? 'Validación de Encargo' : (isInstantPayment ? 'Pagado' : 'Validación de Pago');
 
+      const orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
+
       const orderData = {
-        orderNumber: orderId,
+        orderNumber,
         userId: currentUser.uid,
         userEmail: currentUser.email,
         items: items.map(item => ({
@@ -153,36 +155,42 @@ const Checkout = () => {
         await addDoc(collection(db, 'notifications'), {
           userId: currentUser.uid,
           title: '¡Pago Exitoso! 💳',
-          message: `Tu pago para el pedido ${orderId} fue procesado correctamente.`,
+          message: `Tu pago para el pedido ${orderNumber} fue procesado correctamente.`,
           createdAt: new Date().toISOString(),
-          read: false
+          read: false,
+          sendEmail: true,
+          notificationType: 'order_placed'
         });
 
         // Notificar al admin
         await addDoc(collection(db, 'notifications'), {
-          userId: 'admin', // Usaremos un flag para que todos los admins lo vean o un ID específico
+          userId: 'admin',
           title: '¡NUEVA VENTA! 💰',
-          message: `El cliente ${currentUser.email} compró el pedido ${orderId} por PSE.`,
+          message: `El cliente ${currentUser.email} compró el pedido ${orderNumber} por PSE.`,
           createdAt: new Date().toISOString(),
-          read: false
+          read: false,
+          sendEmail: false
         });
       } else {
         // Notificación de espera para el cliente
         await addDoc(collection(db, 'notifications'), {
           userId: currentUser.uid,
           title: 'Pedido en Validación ⏳',
-          message: `Recibimos tu pedido ${orderId}. Estamos validando el comprobante de pago.`,
+          message: `Recibimos tu pedido ${orderNumber}. Estamos validando el comprobante de pago.`,
           createdAt: new Date().toISOString(),
-          read: false
+          read: false,
+          sendEmail: true,
+          notificationType: 'order_placed'
         });
 
         // Notificar al admin sobre validación pendiente
         await addDoc(collection(db, 'notifications'), {
           userId: 'admin',
           title: 'Validación Pendiente 📝',
-          message: `Nueva transferencia a validar del pedido ${orderId} (${currentUser.email}).`,
+          message: `Nueva transferencia a validar del pedido ${orderNumber} (${currentUser.email}).`,
           createdAt: new Date().toISOString(),
-          read: false
+          read: false,
+          sendEmail: false
         });
       }
 
