@@ -20,6 +20,7 @@ const CreateOrderTab = () => {
   });
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [creditDays, setCreditDays] = useState(30);
+  const [chargeShipping, setChargeShipping] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
@@ -32,6 +33,13 @@ const CreateOrderTab = () => {
     };
     fetchProducts();
   }, [fetchSettings]);
+
+  useEffect(() => {
+    // Default: charge shipping only when global settings have a cost and it's not free delivery
+    if (settings.shippingCost > 0 && !settings.shippingOnDelivery) {
+      setChargeShipping(true);
+    }
+  }, [settings.shippingCost, settings.shippingOnDelivery]);
 
   const filteredProducts = products.filter(p => 
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -63,7 +71,7 @@ const CreateOrderTab = () => {
   };
 
   const subtotal = selectedItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-  const shipping = settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0);
+  const shipping = chargeShipping ? (settings.shippingCost || 0) : 0;
   const total = subtotal + shipping;
 
   const handleSubmit = async (e) => {
@@ -88,7 +96,7 @@ const CreateOrderTab = () => {
         })),
         subtotal,
         shippingCost: shipping,
-        shippingOnDelivery: !!settings.shippingOnDelivery,
+        shippingOnDelivery: !chargeShipping,
         totalAmount: total,
         paymentMethod,
         creditDays: paymentMethod === 'credito' ? creditDays : null,
@@ -152,6 +160,18 @@ const CreateOrderTab = () => {
         <Input label="Email (Opcional)" value={customerInfo.email} onChange={e => setCustomerInfo({...customerInfo, email: e.target.value})} />
         <Input label="Dirección" value={customerInfo.address} onChange={e => setCustomerInfo({...customerInfo, address: e.target.value})} required />
 
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <div
+            onClick={() => setChargeShipping(v => !v)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${chargeShipping ? 'bg-brand-gold' : 'bg-gray-200'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${chargeShipping ? 'translate-x-5' : ''}`} />
+          </div>
+          <span className="text-sm font-semibold text-brand-dark">
+            Cobrar envío {chargeShipping && settings.shippingCost > 0 ? `($${(settings.shippingCost).toLocaleString()})` : ''}
+          </span>
+        </label>
+
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Forma de Pago</label>
@@ -204,7 +224,7 @@ const CreateOrderTab = () => {
               <span>${subtotal.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-xs text-slate-500 font-bold">
-              <span>Envío {settings.shippingOnDelivery ? '(Contra entrega)' : ''}</span>
+              <span>Envío {!chargeShipping ? '(Sin cobro)' : ''}</span>
               <span>${shipping.toLocaleString()}</span>
             </div>
             <div className="flex justify-between text-lg font-black text-brand-dark pt-2 border-t border-gray-200">

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase.config';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
 const DashboardTab = () => {
   const [orders, setOrders] = useState([]);
@@ -86,6 +86,40 @@ const DashboardTab = () => {
     });
     return Object.values(daily);
   }, [filteredOrders]);
+
+  // Cartera vencida
+  const carteraData = useMemo(() => {
+    const today = new Date();
+    const credit = orders.filter(o => o.paymentMethod === 'credito' && o.status !== 'Pagado');
+    const overdue = credit.filter(o => {
+      const due = new Date(o.createdAt);
+      due.setDate(due.getDate() + (o.creditDays || 30));
+      return due < today;
+    });
+    const totalCartera = credit.reduce((s, o) => s + (o.totalAmount || 0), 0);
+    const totalVencida = overdue.reduce((s, o) => s + (o.totalAmount || 0), 0);
+
+    const buckets = { 'Al día': 0, '1-30 días': 0, '31-60 días': 0, '61-90 días': 0, '+90 días': 0 };
+    credit.forEach(o => {
+      const due = new Date(o.createdAt);
+      due.setDate(due.getDate() + (o.creditDays || 30));
+      const daysLate = Math.floor((today - due) / 86400000);
+      if (daysLate <= 0) buckets['Al día'] += o.totalAmount || 0;
+      else if (daysLate <= 30) buckets['1-30 días'] += o.totalAmount || 0;
+      else if (daysLate <= 60) buckets['31-60 días'] += o.totalAmount || 0;
+      else if (daysLate <= 90) buckets['61-90 días'] += o.totalAmount || 0;
+      else buckets['+90 días'] += o.totalAmount || 0;
+    });
+    const agingChart = Object.entries(buckets).map(([name, value]) => ({ name, value }));
+
+    const overdueList = overdue.map(o => {
+      const due = new Date(o.createdAt);
+      due.setDate(due.getDate() + (o.creditDays || 30));
+      return { ...o, daysLate: Math.floor((today - due) / 86400000) };
+    }).sort((a, b) => b.daysLate - a.daysLate);
+
+    return { totalCartera, totalVencida, agingChart, overdueList, totalCreditOrders: credit.length };
+  }, [orders]);
 
   // Nueva Gráfica: Distribución Geográfica de Clientes
   const cityData = useMemo(() => {
@@ -192,6 +226,77 @@ const DashboardTab = () => {
                 <Bar dataKey="value" fill="#B76E79" radius={[0, 10, 10, 0]} barSize={20} />
               </BarChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+      {/* Cartera Vencida */}
+      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+        <div className="flex items-center justify-between flex-wrap gap-4">
+          <h3 className="text-lg font-bold text-brand-dark">Cartera de Crédito</h3>
+          <div className="flex gap-6">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Total en Cartera</p>
+              <p className="text-xl font-black text-brand-dark">${carteraData.totalCartera.toLocaleString('es-CO')}</p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cartera Vencida</p>
+              <p className={`text-xl font-black ${carteraData.totalVencida > 0 ? 'text-red-500' : 'text-green-600'}`}>
+                ${carteraData.totalVencida.toLocaleString('es-CO')}
+              </p>
+            </div>
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pedidos a Crédito</p>
+              <p className="text-xl font-black text-slate-500">{carteraData.totalCreditOrders}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Aging Chart */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Antigüedad de Cartera</p>
+            <ResponsiveContainer width="100%" height={220}>
+              <BarChart data={carteraData.agingChart} margin={{ top: 0, right: 10, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f0f0f0" />
+                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} tickFormatter={v => `$${v >= 1000 ? `${(v/1000).toFixed(0)}k` : v}`} />
+                <Tooltip
+                  contentStyle={{ borderRadius: '15px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                  formatter={v => [`$${v.toLocaleString('es-CO')}`, 'Monto']}
+                />
+                <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={36}
+                  fill="#c8a96e"
+                  label={false}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {/* Overdue table */}
+          <div>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">
+              Pedidos Vencidos {carteraData.overdueList.length > 0 ? `(${carteraData.overdueList.length})` : ''}
+            </p>
+            {carteraData.overdueList.length === 0 ? (
+              <div className="flex items-center justify-center h-[180px] text-slate-400 text-sm font-semibold">
+                Sin cartera vencida
+              </div>
+            ) : (
+              <div className="overflow-auto max-h-[220px] space-y-2">
+                {carteraData.overdueList.map(o => (
+                  <div key={o.id} className="flex items-center justify-between bg-red-50 rounded-2xl px-4 py-3 text-sm">
+                    <div>
+                      <p className="font-bold text-brand-dark">{o.customerInfo?.name || o.userEmail}</p>
+                      <p className="text-[10px] text-slate-400">{o.orderNumber} · {o.creditDays || 30}d crédito</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-black text-red-500">${(o.totalAmount || 0).toLocaleString('es-CO')}</p>
+                      <p className="text-[10px] text-red-400 font-bold">{o.daysLate} días vencido</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
