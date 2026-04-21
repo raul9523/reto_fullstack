@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, getDocs, orderBy, doc, updateDoc, addDoc, getDoc } from 'firebase/firestore';
+import { collection, query, getDocs, orderBy, doc, updateDoc, addDoc, getDoc, deleteDoc, writeBatch } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config';
 import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
@@ -27,6 +27,8 @@ const AdminDashboard = () => {
   const [orders, setOrders] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState(null);
+  const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
+  const [deletingOrderIds, setDeletingOrderIds] = useState(new Set());
 
   useEffect(() => {
     localStorage.setItem('adminActiveTab', activeTab);
@@ -151,6 +153,23 @@ const AdminDashboard = () => {
     }
   };
 
+  const handleDeleteOrders = async (ids) => {
+    const count = ids.length;
+    if (!confirm(`¿Eliminar ${count === 1 ? 'este pedido' : `${count} pedidos`}? Esta acción no se puede deshacer.`)) return;
+    setDeletingOrderIds(new Set(ids));
+    try {
+      const batch = writeBatch(db);
+      ids.forEach(id => batch.delete(doc(db, 'orders', id)));
+      await batch.commit();
+      setOrders(prev => prev.filter(o => !ids.includes(o.id)));
+      setSelectedOrderIds(prev => { const n = new Set(prev); ids.forEach(id => n.delete(id)); return n; });
+    } catch (e) {
+      alert('Error al eliminar: ' + e.message);
+    } finally {
+      setDeletingOrderIds(new Set());
+    }
+  };
+
   if (!hasAccess) {
     return (
       <MainLayout cartItemCount={itemCount}>
@@ -221,22 +240,61 @@ const AdminDashboard = () => {
           </React.Suspense>
           
           {activeTab === 'orders' && (
-            <div className="overflow-x-auto bg-white rounded-3xl border border-gray-100 shadow-sm animate-fade-in">
+            <div className="bg-white rounded-3xl border border-gray-100 shadow-sm animate-fade-in">
+              <div className="p-5 border-b border-gray-50 flex items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-lg font-bold text-brand-dark">Pedidos</h2>
+                  <p className="text-xs text-slate-400">
+                    {orders.length} pedido{orders.length !== 1 ? 's' : ''}
+                    {selectedOrderIds.size > 0 && ` · ${selectedOrderIds.size} seleccionado${selectedOrderIds.size > 1 ? 's' : ''}`}
+                  </p>
+                </div>
+                {selectedOrderIds.size > 0 && (
+                  <button
+                    onClick={() => handleDeleteOrders([...selectedOrderIds])}
+                    disabled={deletingOrderIds.size > 0}
+                    className="text-xs font-bold text-white bg-red-500 hover:bg-red-600 disabled:opacity-50 px-4 py-2 rounded-xl transition-colors"
+                  >
+                    {deletingOrderIds.size > 0 ? 'Eliminando…' : `Eliminar (${selectedOrderIds.size})`}
+                  </button>
+                )}
+              </div>
+              <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
                   <tr className="bg-gray-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
-                    <th className="px-6 py-4">Orden</th>
-                    <th className="px-6 py-4">Cliente</th>
-                    <th className="px-6 py-4">Pago / Envío</th>
-                    <th className="px-6 py-4">Total</th>
-                    <th className="px-6 py-4">Estado</th>
-                    <th className="px-6 py-4">Acciones</th>
+                    <th className="px-4 py-4 w-10">
+                      <input
+                        type="checkbox"
+                        checked={orders.length > 0 && orders.every(o => selectedOrderIds.has(o.id))}
+                        onChange={() => {
+                          const allSelected = orders.every(o => selectedOrderIds.has(o.id));
+                          setSelectedOrderIds(allSelected ? new Set() : new Set(orders.map(o => o.id)));
+                        }}
+                        className="w-4 h-4 rounded text-brand-gold focus:ring-brand-gold"
+                      />
+                    </th>
+                    <th className="px-4 py-4">Orden</th>
+                    <th className="px-4 py-4">Cliente</th>
+                    <th className="px-4 py-4">Pago / Envío</th>
+                    <th className="px-4 py-4">Total</th>
+                    <th className="px-4 py-4">Estado</th>
+                    <th className="px-4 py-4">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {orders.map((order) => (
-                    <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-brand-dark text-sm">
+                    <tr key={order.id} className={`transition-colors ${deletingOrderIds.has(order.id) ? 'opacity-40' : 'hover:bg-gray-50/50'} ${selectedOrderIds.has(order.id) ? 'bg-brand-gold/5' : ''}`}>
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          checked={selectedOrderIds.has(order.id)}
+                          onChange={() => setSelectedOrderIds(prev => { const n = new Set(prev); n.has(order.id) ? n.delete(order.id) : n.add(order.id); return n; })}
+                          disabled={deletingOrderIds.has(order.id)}
+                          className="w-4 h-4 rounded text-brand-gold focus:ring-brand-gold"
+                        />
+                      </td>
+                      <td className="px-4 py-4 font-bold text-brand-dark text-sm">
                         {order.orderNumber}
                         {order.isBackorder && (
                           <span className="block text-[8px] bg-brand-gold text-white px-2 py-0.5 rounded-full mt-1 w-fit">ENCARGO</span>
@@ -353,6 +411,13 @@ const AdminDashboard = () => {
                               <span className="text-brand-gold/60 uppercase">{order.carrier}</span>
                             </div>
                           )}
+                          <button
+                            onClick={() => handleDeleteOrders([order.id])}
+                            disabled={deletingOrderIds.has(order.id) || updatingId === order.id}
+                            className="mt-1 text-[9px] font-bold text-red-400 hover:text-red-600 transition-colors px-2 py-1 rounded-lg hover:bg-red-50 disabled:opacity-40 uppercase tracking-widest"
+                          >
+                            {deletingOrderIds.has(order.id) ? '…' : 'Eliminar'}
+                          </button>
                         </div>
                       </td>
                     </tr>
@@ -362,6 +427,7 @@ const AdminDashboard = () => {
               {orders.length === 0 && (
                 <div className="py-20 text-center text-slate-400">No hay pedidos registrados.</div>
               )}
+              </div>
             </div>
           )}
         </div>
