@@ -1,5 +1,5 @@
 import { db } from './firebase.config';
-import { doc, setDoc, collection, getDocs } from 'firebase/firestore';
+import { doc, setDoc, deleteDoc, collection, getDocs, writeBatch } from 'firebase/firestore';
 
 const DOCUMENT_TYPES = [
   { id: 'CC',  name: 'Cédula de Ciudadanía',            order: 1 },
@@ -16,20 +16,34 @@ const PAYMENT_METHODS = [
   { id: 'contraentrega', label: 'Contra Entrega',         icon: '📦', description: 'Paga cuando recibas tu pedido en casa.',     order: 3 },
 ];
 
+const EXPECTED_DT_IDS = new Set(DOCUMENT_TYPES.map(d => d.id));
+
 export const seedInitialData = async () => {
   try {
+    // document_types: sincronizar siempre — elimina los viejos y escribe los correctos
     const dtSnap = await getDocs(collection(db, 'document_types'));
-    if (dtSnap.empty) {
-      for (const { id, ...data } of DOCUMENT_TYPES) {
-        await setDoc(doc(db, 'document_types', id), data);
-      }
+    const batch = writeBatch(db);
+
+    // Eliminar documentos que no están en la lista oficial
+    dtSnap.docs.forEach(d => {
+      if (!EXPECTED_DT_IDS.has(d.id)) batch.delete(d.ref);
+    });
+
+    // Crear / sobreescribir todos los tipos correctos
+    for (const { id, ...data } of DOCUMENT_TYPES) {
+      batch.set(doc(db, 'document_types', id), data);
     }
 
+    await batch.commit();
+
+    // payment_methods: solo crear si la colección está vacía (el admin puede agregar los suyos)
     const pmSnap = await getDocs(collection(db, 'payment_methods'));
     if (pmSnap.empty) {
+      const pmBatch = writeBatch(db);
       for (const { id, ...data } of PAYMENT_METHODS) {
-        await setDoc(doc(db, 'payment_methods', id), data);
+        pmBatch.set(doc(db, 'payment_methods', id), data);
       }
+      await pmBatch.commit();
     }
   } catch (err) {
     console.error('seedInitialData error:', err);
