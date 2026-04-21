@@ -10,6 +10,7 @@ const ProductsTab = React.lazy(() => import('../components/organisms/admin/Produ
 const CategoriesTab = React.lazy(() => import('../components/organisms/admin/CategoriesTab'));
 const SettingsTab = React.lazy(() => import('../components/organisms/admin/SettingsTab'));
 const UsersTab = React.lazy(() => import('../components/organisms/admin/UsersTab'));
+const CreateOrderTab = React.lazy(() => import('../components/organisms/admin/CreateOrderTab'));
 
 const MASTER_ADMIN = 'raulpte0211@gmail.com';
 
@@ -59,6 +60,8 @@ const AdminDashboard = () => {
     try {
       // 1. Descontar Stock (ya que para transferencia no se hizo en el checkout)
       for (const item of order.items) {
+        if (item.isBackorder) continue; // Efecto cero en stock para encargos aceptados
+        
         const productRef = doc(db, 'products', item.id);
         const productSnap = await getDoc(productRef);
         if (productSnap.exists()) {
@@ -157,6 +160,7 @@ const AdminDashboard = () => {
   const tabs = [
     { id: 'dashboard', label: '📊 Dashboard', color: 'text-brand-gold' },
     { id: 'orders', label: '📦 Pedidos', color: 'text-brand-dark' },
+    { id: 'create_order', label: '➕ Crear Pedido', color: 'text-brand-gold' },
     { id: 'products', label: '👗 Inventario', color: 'text-brand-dark' },
     { id: 'users', label: '👥 Usuarios', color: 'text-brand-dark' },
     { id: 'categories', label: '🏷️ Categorías', color: 'text-brand-dark' },
@@ -205,8 +209,9 @@ const AdminDashboard = () => {
             {activeTab === 'dashboard' && <DashboardTab />}
             {activeTab === 'products' && <ProductsTab />}
             {activeTab === 'categories' && <CategoriesTab />}
-            {activeTab === 'settings' && <SettingsTab />}
-            {activeTab === 'users' && <UsersTab />}
+            { activeTab === 'settings' && <SettingsTab /> }
+            { activeTab === 'users' && <UsersTab /> }
+            { activeTab === 'create_order' && <CreateOrderTab /> }
           </React.Suspense>
           
           {activeTab === 'orders' && (
@@ -216,22 +221,41 @@ const AdminDashboard = () => {
                   <tr className="bg-gray-50 text-slate-400 text-[10px] uppercase tracking-widest font-bold">
                     <th className="px-6 py-4">Orden</th>
                     <th className="px-6 py-4">Cliente</th>
+                    <th className="px-6 py-4">Pago / Envío</th>
                     <th className="px-6 py-4">Total</th>
-                    <th className="px-6 py-4">Estado Actual</th>
-                    <th className="px-6 py-4">Cambiar Estado</th>
+                    <th className="px-6 py-4">Estado</th>
+                    <th className="px-6 py-4">Acciones</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {orders.map((order) => (
                     <tr key={order.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4 font-bold text-brand-dark text-sm">{order.orderNumber}</td>
+                      <td className="px-6 py-4 font-bold text-brand-dark text-sm">
+                        {order.orderNumber}
+                        {order.isBackorder && (
+                          <span className="block text-[8px] bg-brand-gold text-white px-2 py-0.5 rounded-full mt-1 w-fit">ENCARGO</span>
+                        )}
+                        {order.isManual && (
+                          <span className="block text-[8px] bg-blue-500 text-white px-2 py-0.5 rounded-full mt-1 w-fit">MANUAL</span>
+                        )}
+                      </td>
                       <td className="px-6 py-4">
-                        <div className="text-sm text-brand-dark font-medium">{order.userEmail}</div>
+                        <div className="text-sm text-brand-dark font-medium">{order.customerInfo?.name || order.userEmail}</div>
                         <div className="text-[10px] text-slate-400">{new Date(order.createdAt).toLocaleDateString()}</div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-[10px] font-bold uppercase text-brand-dark">{order.paymentMethod}</div>
+                        {order.creditDays && (
+                          <div className="text-[9px] text-blue-500 font-bold">Plazo: {order.creditDays} días</div>
+                        )}
+                        <div className={`text-[9px] font-bold mt-1 ${order.shippingOnDelivery ? 'text-brand-gold' : 'text-slate-400'}`}>
+                          {order.shippingOnDelivery ? 'Flete Contra Entrega' : 'Envío Pagado'}
+                        </div>
                       </td>
                       <td className="px-6 py-4 font-bold text-brand-dark">${order.totalAmount.toLocaleString('es-CO')}</td>
                       <td className="px-6 py-4">
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                          order.status === 'Validación de Encargo' ? 'bg-brand-gold/20 text-brand-gold animate-pulse' :
                           order.status === 'Validación de Pago' ? 'bg-red-100 text-red-600 animate-pulse' :
                           order.status === 'Despachado' ? 'bg-purple-100 text-purple-600' :
                           order.status === 'Entregado' ? 'bg-green-100 text-green-600' :
@@ -246,16 +270,27 @@ const AdminDashboard = () => {
                         )}
                       </td>
                       <td className="px-6 py-4">
-                      {order.status === 'Validación de Pago' ? (
-                        <button 
-                          onClick={() => handleConfirmPayment(order)}
-                          className="bg-brand-gold text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-brand-dark transition-all"
-                          disabled={updatingId === order.id}
-                        >
-                          {updatingId === order.id ? '...' : 'Confirmar Pago'}
-                        </button>
-                      ) : (
-                        <div className="space-y-2">
+                        <div className="flex flex-col gap-2">
+                          {order.status === 'Validación de Pago' && (
+                            <button 
+                              onClick={() => handleConfirmPayment(order)}
+                              className="bg-brand-gold text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-brand-dark transition-all"
+                              disabled={updatingId === order.id}
+                            >
+                              {updatingId === order.id ? '...' : 'Confirmar Pago'}
+                            </button>
+                          )}
+
+                          {order.status === 'Validación de Encargo' && (
+                            <button 
+                              onClick={() => handleUpdateStatus(order.id, 'Pagado')}
+                              className="bg-brand-dark text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-brand-gold transition-all"
+                              disabled={updatingId === order.id}
+                            >
+                              {updatingId === order.id ? '...' : 'Aceptar Encargo'}
+                            </button>
+                          )}
+                          
                           <select 
                             value={order.status}
                             onChange={(e) => {
@@ -269,12 +304,15 @@ const AdminDashboard = () => {
                             className="bg-gray-50 border-none rounded-lg p-1 text-[10px] font-bold outline-none uppercase tracking-widest"
                             disabled={updatingId === order.id}
                           >
+                            <option value="Validación de Pago">Validación Pago</option>
+                            <option value="Validación de Encargo">Validación Encargo</option>
                             <option value="Pagado">Pagado</option>
+                            <option value="Por Cobrar">Por Cobrar</option>
                             <option value="Despachado">Despachado</option>
                             <option value="Entregado">Entregado</option>
                             <option value="Cancelado">Cancelado</option>
                           </select>
-                          
+
                           {/* Formulario de Guía si se selecciona Despachado */}
                           {trackingInfo.id === order.id && (
                             <form onSubmit={handleDispatch} className="mt-2 p-3 bg-brand-gold/5 rounded-xl border border-brand-gold/20 animate-fade-in space-y-2">
@@ -310,7 +348,6 @@ const AdminDashboard = () => {
                             </div>
                           )}
                         </div>
-                      )}
                       </td>
                     </tr>
                   ))}

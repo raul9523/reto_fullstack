@@ -5,6 +5,8 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 export const useSettingsStore = create((set) => ({
   settings: {
     shippingCost: 0,
+    shippingOnDelivery: false,
+    logoUrl: '',
     paymentMethods: {
       pse: true,
       transferencia: true,
@@ -25,6 +27,8 @@ export const useSettingsStore = create((set) => ({
         // Inicializar si no existe
         const initial = {
           shippingCost: 15000,
+          shippingOnDelivery: false,
+          logoUrl: '',
           paymentMethods: {
             pse: true,
             transferencia: true,

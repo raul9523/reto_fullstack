@@ -42,8 +42,8 @@ const ProductCard = ({ product, onAddToCart }) => {
             </div>
           )}
           {stockQuantity === 0 && (
-            <div className="bg-red-500 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">
-              Agotado
+            <div className="bg-brand-gold text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">
+              Por Encargo
             </div>
           )}
         </div>
@@ -71,13 +71,19 @@ const ProductCard = ({ product, onAddToCart }) => {
             </span>
           </div>
           
-          <Button 
-            onClick={() => onAddToCart && onAddToCart(product)}
-            disabled={stockQuantity === 0}
-            className="px-5 py-2 text-xs uppercase tracking-widest font-bold"
-          >
-            {stockQuantity === 0 ? 'Agotado' : 'Añadir'}
-          </Button>
+          <div className="flex flex-col w-full">
+            <Button 
+              onClick={() => onAddToCart && onAddToCart(product)}
+              className={`w-full py-2 text-[10px] uppercase tracking-widest font-bold ${stockQuantity === 0 ? 'bg-brand-gold hover:bg-brand-dark' : ''}`}
+            >
+              {stockQuantity === 0 ? 'Solicitar Encargo' : 'Añadir'}
+            </Button>
+            {stockQuantity === 0 && (
+              <p className="text-[8px] text-slate-400 mt-2 leading-tight italic">
+                * Sujeto a validación (15-30 días). Sin compromiso de venta inicial.
+              </p>
+            )}
+          </div>
         </div>
       </div>
     </div>

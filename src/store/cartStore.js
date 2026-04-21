@@ -22,7 +22,11 @@ export const useCartStore = create(
             newItems[existingItemIndex].quantity += quantity;
           } else {
             // Si no existe, agregarlo
-            newItems.push({ product, quantity });
+            newItems.push({ 
+              product, 
+              quantity,
+              isBackorder: product.stockQuantity === 0 
+            });
           }
 
           // Recalcular totales

@@ -4,6 +4,7 @@ import Button from '../atoms/Button';
 import useProductStore from '../../store/productStore';
 import { useUserStore } from '../../store/userStore';
 import useNotificationStore from '../../store/notificationStore';
+import { useSettingsStore } from '../../store/settingsStore';
 
 const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartClick }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -11,6 +12,11 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
   const { searchQuery, setSearchQuery } = useProductStore();
   const { currentUser, logout } = useUserStore();
   const { notifications, unreadCount, listenToNotifications, markAsRead, markAllAsRead } = useNotificationStore();
+  const { settings, fetchSettings } = useSettingsStore();
+
+  React.useEffect(() => {
+    fetchSettings();
+  }, [fetchSettings]);
 
   React.useEffect(() => {
     if (!currentUser) return;
@@ -26,8 +32,18 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
           
           {/* Logo / Brand */}
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
-            <span className="text-2xl font-bold text-brand-gold">DÚO</span>
-            <span className="text-2xl font-bold text-slate-800 ml-1">DREAMS</span>
+            {settings?.logoUrl ? (
+              <img 
+                src={settings.logoUrl} 
+                alt="Duo Dreams Logo" 
+                className="h-8 sm:h-10 w-auto object-contain transition-transform hover:scale-105"
+              />
+            ) : (
+              <>
+                <span className="text-2xl font-bold text-brand-gold">DÚO</span>
+                <span className="text-2xl font-bold text-slate-800 ml-1">DREAMS</span>
+              </>
+            )}
           </div>
 
           {/* Search Bar - Desktop */}

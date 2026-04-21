@@ -102,12 +102,12 @@ const Checkout = () => {
     
     setIsConfirming(true);
     try {
-      const orderId = `ORD-${Date.now().toString().slice(-6)}`;
-      const totalWithShipping = totalAmount + (settings.shippingCost || 0);
+      const isBackorder = items.some(item => item.isBackorder);
+      const totalWithShipping = totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
       
       // Determinar estado inicial y si descuenta stock de una vez
       const isInstantPayment = selectedPaymentMethod === 'pse' || selectedPaymentMethod === 'card';
-      const initialStatus = isInstantPayment ? 'Pagado' : 'Validación de Pago';
+      const initialStatus = isBackorder ? 'Validación de Encargo' : (isInstantPayment ? 'Pagado' : 'Validación de Pago');
 
       const orderData = {
         orderNumber: orderId,
@@ -119,15 +119,18 @@ const Checkout = () => {
           price: item.product.price,
           cost: item.product.cost || (item.product.price * 0.6),
           quantity: item.quantity,
-          category: item.product.category
+          category: item.product.category,
+          isBackorder: !!item.isBackorder
         })),
         subtotal: totalAmount,
-        shippingCost: settings.shippingCost || 0,
+        shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
+        shippingOnDelivery: !!settings.shippingOnDelivery,
         totalAmount: totalWithShipping,
         shippingInfo,
         paymentMethod: selectedPaymentMethod,
-        receiptUrl: shippingInfo.receiptUrl || '', // Nuevo campo para transferencia
+        receiptUrl: shippingInfo.receiptUrl || '', 
         status: initialStatus,
+        isBackorder: isBackorder,
         createdAt: new Date().toISOString()
       };
 
@@ -465,15 +468,24 @@ const Checkout = () => {
                 </div>
                 <div className="flex justify-between text-slate-500">
                   <span>Envío</span>
-                  <span className={settings.shippingCost > 0 ? 'text-slate-800' : 'text-green-600 font-medium'}>
-                    {settings.shippingCost > 0 ? `$${settings.shippingCost.toLocaleString('es-CO')}` : 'Gratis'}
+                  <span className={settings.shippingOnDelivery ? 'text-brand-gold font-bold italic text-[10px]' : (settings.shippingCost > 0 ? 'text-slate-800' : 'text-green-600 font-medium')}>
+                    {settings.shippingOnDelivery ? 'Pagas al recibir (Flete)' : (settings.shippingCost > 0 ? `$${settings.shippingCost.toLocaleString('es-CO')}` : 'Gratis')}
                   </span>
                 </div>
-                <div className="flex justify-between text-xl font-bold text-slate-800 pt-2 border-t border-gray-100">
-                  <span>Total</span>
-                  <span>${(totalAmount + (settings.shippingCost || 0)).toLocaleString('es-CO')}</span>
+                <div className="flex justify-between text-xl font-bold text-brand-dark pt-2 border-t border-gray-100">
+                  <span>Total a Pagar</span>
+                  <span>${(totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0))).toLocaleString('es-CO')}</span>
                 </div>
               </div>
+
+              {items.some(item => item.isBackorder) && (
+                <div className="mt-4 p-4 bg-brand-gold/5 border border-brand-gold/20 rounded-2xl animate-pulse">
+                  <p className="text-[9px] text-brand-gold font-black uppercase tracking-widest mb-1">⚠️ Aviso de Encargo</p>
+                  <p className="text-[9px] text-slate-500 leading-relaxed italic">
+                    Tu pedido incluye productos bajo la modalidad de **Encargo**. Esto no implica compromiso de venta inicial y está sujeto a validación de disponibilidad (15-30 días).
+                  </p>
+                </div>
+              )}
 
               <Button 
                 className="w-full py-4 mt-6 text-lg" 
