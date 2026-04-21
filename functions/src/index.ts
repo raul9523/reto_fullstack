@@ -143,13 +143,29 @@ export const deleteUsers = onCall(async (request) => {
   const results: { uid: string; ok: boolean; error?: string }[] = [];
 
   for (const uid of userIds) {
+    const errors: string[] = [];
+
+    // Auth deletion — independently, failure is non-blocking
     try {
       await admin.auth().deleteUser(uid);
-      await admin.firestore().doc(`users/${uid}`).delete();
-      results.push({ uid, ok: true });
-    } catch (err) {
-      results.push({ uid, ok: false, error: String(err) });
+    } catch (err: unknown) {
+      const code = (err as { code?: string }).code;
+      // user-not-found means it's already gone from Auth — acceptable
+      if (code !== "auth/user-not-found") {
+        errors.push(`Auth: ${String(err)}`);
+      }
     }
+
+    // Firestore deletion — always attempted regardless of Auth result
+    let firestoreOk = false;
+    try {
+      await admin.firestore().doc(`users/${uid}`).delete();
+      firestoreOk = true;
+    } catch (err) {
+      errors.push(`Firestore: ${String(err)}`);
+    }
+
+    results.push({ uid, ok: firestoreOk, error: errors.join("; ") || undefined });
   }
 
   return { results };

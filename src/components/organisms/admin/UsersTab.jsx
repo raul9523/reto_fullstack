@@ -89,13 +89,24 @@ const UsersTab = () => {
     setDeletingIds(new Set(ids));
     try {
       const fn = httpsCallable(functions, 'deleteUsers');
-      await fn({ userIds: ids });
-      setUsers(prev => prev.filter(u => !ids.includes(u.id)));
-      setSelectedIds(prev => {
-        const next = new Set(prev);
-        ids.forEach(id => next.delete(id));
-        return next;
-      });
+      const response = await fn({ userIds: ids });
+      const results = response.data.results ?? [];
+
+      const deletedIds = results.filter(r => r.ok).map(r => r.uid);
+      const failedIds  = results.filter(r => !r.ok).map(r => r.uid);
+
+      if (deletedIds.length > 0) {
+        setUsers(prev => prev.filter(u => !deletedIds.includes(u.id)));
+        setSelectedIds(prev => {
+          const next = new Set(prev);
+          deletedIds.forEach(id => next.delete(id));
+          return next;
+        });
+      }
+
+      if (failedIds.length > 0) {
+        alert(`No se pudo eliminar ${failedIds.length} usuario(s). Revisa los logs de Firebase Functions.`);
+      }
     } catch (err) {
       alert('Error al eliminar: ' + (err.message ?? err));
     } finally {
