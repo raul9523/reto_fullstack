@@ -1,105 +1,74 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 
+const makeItemKey = (productId, sizeInfo) =>
+  sizeInfo ? `${productId}__${sizeInfo.gender || ''}__${sizeInfo.size}` : productId;
+
 export const useCartStore = create(
   persist(
     (set, get) => ({
-      items: [], // Estructura: [{ product: { id, name, price... }, quantity: 1 }]
+      items: [],
       totalAmount: 0,
       itemCount: 0,
 
-      // Agregar producto al carrito
-      addToCart: (product, quantity = 1) => {
+      addToCart: (product, quantity = 1, sizeInfo = null) => {
         set((state) => {
-          const existingItemIndex = state.items.findIndex(
-            (item) => item.product.id === product.id
-          );
-
+          const itemKey = makeItemKey(product.id, sizeInfo);
+          const existingIndex = state.items.findIndex(i => i.itemKey === itemKey);
           let newItems = [...state.items];
 
-          if (existingItemIndex >= 0) {
-            // Si ya existe, incrementar la cantidad
-            newItems[existingItemIndex].quantity += quantity;
+          if (existingIndex >= 0) {
+            newItems[existingIndex] = { ...newItems[existingIndex], quantity: newItems[existingIndex].quantity + quantity };
           } else {
-            // Si no existe, agregarlo
-            newItems.push({ 
-              product, 
+            newItems.push({
+              itemKey,
+              product,
               quantity,
-              isBackorder: product.stockQuantity === 0 
+              sizeInfo,
+              isBackorder: product.stockQuantity === 0,
             });
           }
 
-          // Recalcular totales
-          const { totalAmount, itemCount } = calculateTotals(newItems);
-
-          return {
-            items: newItems,
-            totalAmount,
-            itemCount,
-          };
+          return { items: newItems, ...calculateTotals(newItems) };
         });
       },
 
-      // Eliminar un producto completamente del carrito
-      removeFromCart: (productId) => {
+      removeFromCart: (itemKey) => {
         set((state) => {
-          const newItems = state.items.filter(
-            (item) => item.product.id !== productId
-          );
-
-          const { totalAmount, itemCount } = calculateTotals(newItems);
-
-          return {
-            items: newItems,
-            totalAmount,
-            itemCount,
-          };
+          const newItems = state.items.filter(i => i.itemKey !== itemKey);
+          return { items: newItems, ...calculateTotals(newItems) };
         });
       },
 
-      // Actualizar la cantidad de un producto específico
-      updateQuantity: (productId, quantity) => {
+      updateQuantity: (itemKey, quantity) => {
         set((state) => {
           if (quantity <= 0) {
-            // Si la cantidad es 0 o menor, eliminarlo
-            return get().removeFromCart(productId);
+            const newItems = state.items.filter(i => i.itemKey !== itemKey);
+            return { items: newItems, ...calculateTotals(newItems) };
           }
-
-          const newItems = state.items.map((item) => {
-            if (item.product.id === productId) {
-              return { ...item, quantity };
-            }
-            return item;
-          });
-
-          const { totalAmount, itemCount } = calculateTotals(newItems);
-
-          return {
-            items: newItems,
-            totalAmount,
-            itemCount,
-          };
+          const newItems = state.items.map(i => i.itemKey === itemKey ? { ...i, quantity } : i);
+          return { items: newItems, ...calculateTotals(newItems) };
         });
       },
 
-      // Vaciar el carrito
       clearCart: () => set({ items: [], totalAmount: 0, itemCount: 0 }),
     }),
     {
-      name: 'cart-storage', // Nombre en localStorage
+      name: 'cart-storage',
       storage: createJSONStorage(() => localStorage),
     }
   )
 );
 
-// Función auxiliar para recalcular los totales
-const calculateTotals = (items) => {
-  return items.reduce(
+const calculateTotals = (items) =>
+  items.reduce(
     (totals, item) => {
+      const price = item.product.discount > 0
+        ? item.product.price - (item.product.price * item.product.discount / 100)
+        : item.product.price;
       totals.itemCount += item.quantity;
-      totals.totalAmount += item.product.price * item.quantity;
+      totals.totalAmount += price * item.quantity;
       return totals;
     },
     { totalAmount: 0, itemCount: 0 }
   );
-};

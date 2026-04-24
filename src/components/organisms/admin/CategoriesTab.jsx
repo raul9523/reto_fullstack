@@ -8,6 +8,7 @@ const CategoriesTab = () => {
   const [categories, setCategories] = useState([]);
   const [newCat, setNewCat] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [search, setSearch] = useState('');
 
   const fetchCategories = async () => {
     setIsLoading(true);
@@ -78,13 +79,26 @@ const CategoriesTab = () => {
     <div className="bg-white rounded-3xl p-8 border border-gray-100 shadow-sm animate-fade-in">
       <h2 className="text-xl font-bold text-brand-dark mb-6">Gestión de Categorías</h2>
 
-      <div className="flex gap-2 mb-8">
-        <Input 
+      <div className="flex gap-2 mb-6">
+        <Input
           placeholder="Nombre de la nueva categoría (ej: Batas)"
           value={newCat}
           onChange={(e) => setNewCat(e.target.value)}
         />
         <Button onClick={handleAdd} className="whitespace-nowrap">Agregar</Button>
+      </div>
+
+      <div className="relative mb-6">
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Buscar categoría..."
+          className="w-full bg-gray-50 border border-gray-100 rounded-2xl pl-10 pr-4 py-3 text-sm outline-none focus:border-brand-gold transition-all"
+        />
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-gray-50">
@@ -98,7 +112,7 @@ const CategoriesTab = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {categories.map(cat => (
+            {categories.filter(c => !search.trim() || c.name.toLowerCase().includes(search.toLowerCase())).map(cat => (
               <tr key={cat.id} className="hover:bg-gray-50/50 transition-colors">
                 <td className="px-6 py-4">
                   <input 

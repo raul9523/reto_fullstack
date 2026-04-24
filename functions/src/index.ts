@@ -1,8 +1,12 @@
 import { setGlobalOptions } from "firebase-functions";
 import { onDocumentCreated } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
+import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
 import * as nodemailer from "nodemailer";
+import * as crypto from "crypto";
+
+const wompiIntegritySecret = defineSecret("WOMPI_INTEGRITY_SECRET");
 
 setGlobalOptions({ maxInstances: 10 });
 
@@ -114,6 +118,34 @@ export const sendEmailOnNotification = onDocumentCreated(
       subject: title,
       html: buildEmailHtml(title, message, "https://duo-dreams.web.app"),
     });
+  }
+);
+
+// ── Wompi: genera firma de integridad ─────────────────────────────────────────
+export const generateWompiSignature = onCall(
+  { secrets: [wompiIntegritySecret] },
+  async (request) => {
+    const { reference, amountInCents, currency } = request.data as {
+      reference: string;
+      amountInCents: number;
+      currency: string;
+    };
+
+    if (!reference || !amountInCents || !currency) {
+      throw new HttpsError("invalid-argument", "Faltan parámetros: reference, amountInCents, currency");
+    }
+
+    const secret = wompiIntegritySecret.value();
+    if (!secret) {
+      throw new HttpsError("internal", "Clave de integridad Wompi no configurada. Usa: firebase functions:secrets:set WOMPI_INTEGRITY_SECRET");
+    }
+
+    const hash = crypto
+      .createHash("sha256")
+      .update(`${reference}${amountInCents}${currency}${secret}`)
+      .digest("hex");
+
+    return { signature: hash };
   }
 );
 

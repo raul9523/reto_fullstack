@@ -9,6 +9,8 @@ const Login = lazy(() => import('./registro/Login.jsx'));
 const Checkout = lazy(() => import('./pages/Checkout.jsx'));
 const UserOrders = lazy(() => import('./pages/UserOrders.jsx'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard.jsx'));
+const SuperAdmin = lazy(() => import('./pages/SuperAdmin.jsx'));
+const WompiCallback = lazy(() => import('./pages/WompiCallback.jsx'));
 
 const PageFallback = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -33,6 +35,8 @@ const App = () => {
   else if (path === '/checkout') Page = Checkout;
   else if (path === '/mis-pedidos') Page = UserOrders;
   else if (path === '/admin') Page = AdminDashboard;
+  else if (path === '/super-admin') Page = SuperAdmin;
+  else if (path === '/wompi-callback') Page = WompiCallback;
 
   return (
     <Suspense fallback={<PageFallback />}>

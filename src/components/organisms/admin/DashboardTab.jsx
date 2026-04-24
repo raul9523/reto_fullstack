@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase.config';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
 
@@ -10,9 +10,13 @@ const DashboardTab = () => {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  const [dateRange, setDateRange] = useState('all'); 
+  const [dateRange, setDateRange] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterProduct, setFilterProduct] = useState('all');
+
+  const [paymentModal, setPaymentModal] = useState({ open: false, order: null });
+  const [paymentForm, setPaymentForm] = useState({ amount: '', date: '', reference: '', receiptUrl: '' });
+  const [savingPayment, setSavingPayment] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -133,6 +137,34 @@ const DashboardTab = () => {
       .sort((a, b) => b.value - a.value)
       .slice(0, 8); // Top 8 ciudades
   }, [users]);
+
+  const openPaymentModal = (order) => {
+    setPaymentForm({ amount: order.totalAmount || '', date: new Date().toISOString().split('T')[0], reference: '', receiptUrl: '' });
+    setPaymentModal({ open: true, order });
+  };
+
+  const handleRegisterPayment = async () => {
+    if (!paymentForm.amount || !paymentForm.date) return alert('Ingresa monto y fecha');
+    setSavingPayment(true);
+    try {
+      await updateDoc(doc(db, 'orders', paymentModal.order.id), {
+        status: 'Pagado',
+        payment: {
+          amount: parseFloat(paymentForm.amount),
+          date: paymentForm.date,
+          reference: paymentForm.reference,
+          receiptUrl: paymentForm.receiptUrl,
+          registeredAt: new Date().toISOString(),
+        }
+      });
+      setOrders(prev => prev.map(o => o.id === paymentModal.order.id ? { ...o, status: 'Pagado' } : o));
+      setPaymentModal({ open: false, order: null });
+    } catch (e) {
+      alert('Error al registrar pago: ' + e.message);
+    } finally {
+      setSavingPayment(false);
+    }
+  };
 
   if (isLoading) return <div className="py-20 text-center">Analizando datos...</div>;
 
@@ -284,15 +316,21 @@ const DashboardTab = () => {
             ) : (
               <div className="overflow-auto max-h-[220px] space-y-2">
                 {carteraData.overdueList.map(o => (
-                  <div key={o.id} className="flex items-center justify-between bg-red-50 rounded-2xl px-4 py-3 text-sm">
-                    <div>
-                      <p className="font-bold text-brand-dark">{o.customerInfo?.name || o.userEmail}</p>
+                  <div key={o.id} className="flex items-center justify-between bg-red-50 rounded-2xl px-4 py-3 text-sm gap-3">
+                    <div className="min-w-0 flex-1">
+                      <p className="font-bold text-brand-dark truncate">{o.customerInfo?.name || o.userEmail}</p>
                       <p className="text-[10px] text-slate-400">{o.orderNumber} · {o.creditDays || 30}d crédito</p>
                     </div>
-                    <div className="text-right">
+                    <div className="text-right shrink-0">
                       <p className="font-black text-red-500">${(o.totalAmount || 0).toLocaleString('es-CO')}</p>
                       <p className="text-[10px] text-red-400 font-bold">{o.daysLate} días vencido</p>
                     </div>
+                    <button
+                      onClick={() => openPaymentModal(o)}
+                      className="shrink-0 bg-green-600 text-white text-[10px] font-black uppercase px-3 py-1.5 rounded-xl hover:bg-green-700 transition-all whitespace-nowrap"
+                    >
+                      Registrar Pago
+                    </button>
                   </div>
                 ))}
               </div>
@@ -300,6 +338,77 @@ const DashboardTab = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal Registrar Pago */}
+      {paymentModal.open && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setPaymentModal({ open: false, order: null })}>
+          <div className="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-lg font-black text-brand-dark mb-1">Registrar Pago</h3>
+            <p className="text-xs text-slate-400 mb-6">
+              {paymentModal.order?.customerInfo?.name || paymentModal.order?.userEmail} · {paymentModal.order?.orderNumber}
+            </p>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Monto Recibido *</label>
+                <div className="flex items-center gap-2 bg-gray-50 rounded-xl px-4 py-3">
+                  <span className="text-slate-400 font-bold">$</span>
+                  <input
+                    type="number"
+                    value={paymentForm.amount}
+                    onChange={e => setPaymentForm(p => ({ ...p, amount: e.target.value }))}
+                    className="flex-1 bg-transparent outline-none font-bold text-brand-dark"
+                    placeholder="0"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Fecha de Pago *</label>
+                <input
+                  type="date"
+                  value={paymentForm.date}
+                  onChange={e => setPaymentForm(p => ({ ...p, date: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 outline-none font-medium text-brand-dark"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Referencia / No. Comprobante</label>
+                <input
+                  type="text"
+                  value={paymentForm.reference}
+                  onChange={e => setPaymentForm(p => ({ ...p, reference: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 outline-none font-medium"
+                  placeholder="Ej: TRF-20240423-001"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">URL Comprobante (opcional)</label>
+                <input
+                  type="url"
+                  value={paymentForm.receiptUrl}
+                  onChange={e => setPaymentForm(p => ({ ...p, receiptUrl: e.target.value }))}
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 outline-none font-medium"
+                  placeholder="https://..."
+                />
+              </div>
+            </div>
+            <div className="flex gap-3 mt-8">
+              <button
+                onClick={() => setPaymentModal({ open: false, order: null })}
+                className="flex-1 py-3 rounded-2xl border border-gray-200 text-slate-500 font-bold hover:bg-gray-50 transition-all"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleRegisterPayment}
+                disabled={savingPayment}
+                className="flex-1 py-3 rounded-2xl bg-green-600 text-white font-black uppercase hover:bg-green-700 transition-all disabled:opacity-50"
+              >
+                {savingPayment ? 'Guardando...' : 'Confirmar Pago'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

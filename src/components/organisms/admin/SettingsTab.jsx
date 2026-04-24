@@ -329,6 +329,45 @@ const SettingsTab = () => {
         </div>
       </div>
 
+      {/* Wompi */}
+      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Pasarela de Pago — Wompi</h3>
+          <p className="text-xs text-slate-400 mt-1">
+            Wompi (Bancolombia) — 2.89% tarjeta, PSE, Nequi en un solo botón.
+          </p>
+        </div>
+        <label className="flex items-center justify-between p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-white transition-colors bg-white">
+          <div>
+            <span className="text-sm font-bold text-brand-dark">Habilitar Wompi en el Checkout</span>
+            <p className="text-[10px] text-slate-400">Reemplaza el botón PSE con el checkout unificado de Wompi.</p>
+          </div>
+          <input
+            type="checkbox"
+            checked={localSettings.wompi?.enabled ?? false}
+            onChange={() => setLocalSettings(prev => ({ ...prev, wompi: { ...prev.wompi, enabled: !(prev.wompi?.enabled) } }))}
+            className="w-5 h-5 rounded text-brand-gold focus:ring-brand-gold"
+          />
+        </label>
+        <Input
+          label="Clave Pública Wompi"
+          placeholder="pub_test_xxxxxxxxxxxxxxxx o pub_prod_xxxxxxxxxxxxxxxx"
+          value={localSettings.wompi?.publicKey || ''}
+          onChange={(e) => setLocalSettings(prev => ({ ...prev, wompi: { ...prev.wompi, publicKey: e.target.value } }))}
+        />
+        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-2 text-xs">
+          <p className="font-bold text-amber-700 uppercase tracking-wide text-[10px]">Configuración requerida (solo una vez)</p>
+          <p className="text-amber-600">La <strong>clave de integridad</strong> (secreta) NO va aquí — se configura en Firebase Functions:</p>
+          <code className="block bg-white border border-amber-200 rounded-lg px-3 py-2 text-amber-800 font-mono text-[11px]">
+            firebase functions:secrets:set WOMPI_INTEGRITY_SECRET
+          </code>
+          <p className="text-amber-500">Luego despliega las funciones: <span className="font-mono">firebase deploy --only functions</span></p>
+          <p className="text-amber-500">
+            Crea tus llaves en <span className="font-semibold">comercios.wompi.co</span> → Desarrolladores → Llaves de API
+          </p>
+        </div>
+      </div>
+
       {/* Notificaciones por Correo */}
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-6">
         <div>

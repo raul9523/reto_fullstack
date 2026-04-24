@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase/firebase.config.js';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '../firebase/firebase.config.js';
 import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -96,6 +97,70 @@ const Checkout = () => {
     setShippingInfo(prev => ({ ...prev, [id]: value }));
   };
 
+  const handleWompiPayment = async () => {
+    if (!shippingInfo.recipientName || !shippingInfo.address) {
+      alert('Completa la información de envío antes de continuar.');
+      return;
+    }
+
+    setIsConfirming(true);
+    try {
+      const isBackorder = items.some(item => item.isBackorder);
+      const totalWithShipping = totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
+      const orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
+      const amountInCents = Math.round(totalWithShipping * 100);
+
+      // 1. Guardar orden con estado pendiente ANTES de redirigir
+      await addDoc(collection(db, 'orders'), {
+        orderNumber,
+        userId: currentUser.uid,
+        userEmail: currentUser.email,
+        items: items.map(item => ({
+          id: item.product.id,
+          name: item.product.name,
+          price: item.product.price,
+          cost: item.product.cost || (item.product.price * 0.6),
+          quantity: item.quantity,
+          category: item.product.category,
+          isBackorder: !!item.isBackorder,
+          ...(item.sizeInfo ? { size: item.sizeInfo.size, gender: item.sizeInfo.gender } : {}),
+        })),
+        subtotal: totalAmount,
+        shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
+        shippingOnDelivery: !!settings.shippingOnDelivery,
+        totalAmount: totalWithShipping,
+        shippingInfo,
+        paymentMethod: 'wompi',
+        paymentProvider: 'wompi',
+        status: isBackorder ? 'Validación de Encargo' : 'Pendiente de Pago',
+        isBackorder,
+        createdAt: new Date().toISOString(),
+      });
+
+      // 2. Obtener firma de integridad desde Firebase Function
+      const generateSig = httpsCallable(functions, 'generateWompiSignature');
+      const sigResult = await generateSig({ reference: orderNumber, amountInCents, currency: 'COP' });
+      const { signature } = sigResult.data;
+
+      // 3. Redirigir a Wompi Checkout
+      const publicKey = settings.wompi?.publicKey || '';
+      const redirectUrl = `${window.location.origin}/wompi-callback`;
+      const wompiUrl = new URL('https://checkout.wompi.co/p/');
+      wompiUrl.searchParams.set('public-key', publicKey);
+      wompiUrl.searchParams.set('currency', 'COP');
+      wompiUrl.searchParams.set('amount-in-cents', String(amountInCents));
+      wompiUrl.searchParams.set('reference', orderNumber);
+      wompiUrl.searchParams.set('signature:integrity', signature);
+      wompiUrl.searchParams.set('redirect-url', redirectUrl);
+
+      window.location.href = wompiUrl.toString();
+    } catch (error) {
+      console.error('Error iniciando pago Wompi:', error);
+      alert('Error al iniciar el pago. Intenta nuevamente.');
+      setIsConfirming(false);
+    }
+  };
+
   const handleConfirmOrder = async () => {
     if (items.length === 0) return;
     if (selectedPaymentMethod === 'transferencia' && !shippingInfo.receiptUrl) {
@@ -125,7 +190,8 @@ const Checkout = () => {
           cost: item.product.cost || (item.product.price * 0.6),
           quantity: item.quantity,
           category: item.product.category,
-          isBackorder: !!item.isBackorder
+          isBackorder: !!item.isBackorder,
+          ...(item.sizeInfo ? { size: item.sizeInfo.size, gender: item.sizeInfo.gender } : {}),
         })),
         subtotal: totalAmount,
         shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
@@ -365,43 +431,49 @@ const Checkout = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Wompi: aparece primero si está habilitado */}
+                  {settings.wompi?.enabled && settings.wompi?.publicKey && (
+                    <div
+                      onClick={() => setSelectedPaymentMethod('wompi')}
+                      className={`relative flex items-center justify-between p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
+                        selectedPaymentMethod === 'wompi' ? 'border-[#E83C4E] bg-red-50/40 shadow-md' : 'border-gray-100 hover:border-gray-200 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 border border-gray-100 shrink-0">
+                          <svg viewBox="0 0 80 28" className="w-full" fill="none">
+                            <text x="0" y="22" fontFamily="Arial Black, sans-serif" fontWeight="900" fontSize="22" fill="#E83C4E">wompi</text>
+                          </svg>
+                        </div>
+                        <div>
+                          <span className="block font-black text-slate-800 text-sm">Pagar en línea</span>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {['Tarjeta', 'PSE', 'Nequi', 'Efectivo'].map(m => (
+                              <span key={m} className="text-[9px] bg-gray-100 text-slate-500 font-bold px-1.5 py-0.5 rounded">{m}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all shrink-0 ${selectedPaymentMethod === 'wompi' ? 'border-[#E83C4E] bg-[#E83C4E]' : 'border-gray-200'}`}>
+                        {selectedPaymentMethod === 'wompi' && (
+                          <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                        )}
+                      </div>
+                      {selectedPaymentMethod === 'wompi' && (
+                        <div className="absolute -top-3 -right-2 bg-[#E83C4E] text-white text-[8px] font-black px-2 py-1 rounded-lg uppercase">
+                          Recomendado · 2.89%
+                        </div>
+                      )}
+                    </div>
+                  )}
+
                   {visibleMethods.map(method => {
                     const isSelected = selectedPaymentMethod === method.id;
 
-                    // PSE gets special official branding
-                    if (method.id === 'pse') {
-                      return (
-                        <div
-                          key="pse"
-                          onClick={() => setSelectedPaymentMethod('pse')}
-                          className={`relative flex items-center justify-between p-5 border-2 rounded-2xl cursor-pointer transition-all duration-300 ${
-                            isSelected ? 'border-blue-600 bg-blue-50 shadow-md' : 'border-gray-100 hover:border-gray-200 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 bg-white rounded-xl shadow-sm flex items-center justify-center p-2 border border-gray-100">
-                              <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Logo_PSE.png" alt="PSE" className="w-full h-full object-contain" />
-                            </div>
-                            <div>
-                              <span className="block font-black text-blue-900 text-sm italic tracking-tighter">PAGOS SEGUROS EN LÍNEA</span>
-                              <span className="text-[10px] text-blue-600 font-bold uppercase tracking-widest bg-blue-100 px-2 py-0.5 rounded-full">Oficial PSE</span>
-                            </div>
-                          </div>
-                          <div className={`w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-200'}`}>
-                            {isSelected && (
-                              <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                              </svg>
-                            )}
-                          </div>
-                          {isSelected && (
-                            <div className="absolute -top-3 -right-2 bg-blue-600 text-white text-[8px] font-black px-2 py-1 rounded-lg animate-bounce uppercase">
-                              Recomendado
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
+                    // Ocultar PSE si Wompi está activo (Wompi ya incluye PSE)
+                    if (method.id === 'pse' && settings.wompi?.enabled && settings.wompi?.publicKey) return null;
 
                     // Transferencia Bancaria — shows configurable bank info
                     if (method.id === 'transferencia') {
@@ -495,18 +567,23 @@ const Checkout = () => {
               
               <div className="space-y-4 mb-6 max-h-[400px] overflow-y-auto pr-2">
                 {items.map((item) => (
-                  <div key={item.product.id} className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <img 
-                      src={item.product.imageUrl} 
-                      alt={item.product.name} 
+                  <div key={item.itemKey} className="flex gap-3 py-2 border-b border-gray-50 last:border-0">
+                    <img
+                      src={item.product.imageUrl}
+                      alt={item.product.name}
                       className="w-12 h-12 object-cover rounded-lg flex-shrink-0"
                     />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-slate-800 truncate">{item.product.name}</p>
-                      <p className="text-xs text-slate-500">{item.quantity} x ${item.product.price.toLocaleString('es-MX')}</p>
+                      {item.sizeInfo && (
+                        <p className="text-[10px] text-brand-gold font-bold">
+                          {item.sizeInfo.gender && `${item.sizeInfo.gender} · `}Talla {item.sizeInfo.size}
+                        </p>
+                      )}
+                      <p className="text-xs text-slate-500">{item.quantity} x ${item.product.price.toLocaleString('es-CO')}</p>
                     </div>
                     <p className="text-sm font-bold text-slate-800">
-                      ${(item.quantity * item.product.price).toLocaleString('es-MX')}
+                      ${(item.quantity * item.product.price).toLocaleString('es-CO')}
                     </p>
                   </div>
                 ))}
@@ -538,20 +615,20 @@ const Checkout = () => {
                 </div>
               )}
 
-              <Button 
-                className="w-full py-4 mt-6 text-lg" 
-                onClick={handleConfirmOrder}
+              <Button
+                className={`w-full py-4 mt-6 text-lg ${selectedPaymentMethod === 'wompi' ? 'bg-[#E83C4E] hover:bg-[#c8303f]' : ''}`}
+                onClick={selectedPaymentMethod === 'wompi' ? handleWompiPayment : handleConfirmOrder}
                 disabled={isConfirming || items.length === 0}
               >
                 {isConfirming ? (
                   <span className="flex items-center justify-center">
                     <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Procesando...
+                    {selectedPaymentMethod === 'wompi' ? 'Redirigiendo a Wompi...' : 'Procesando...'}
                   </span>
-                ) : 'Confirmar y Pagar'}
+                ) : selectedPaymentMethod === 'wompi' ? 'Continuar a Wompi' : 'Confirmar y Pagar'}
               </Button>
               <p className="text-[10px] text-slate-400 text-center mt-4">
                 Al confirmar, aceptas nuestros términos y condiciones de venta.
