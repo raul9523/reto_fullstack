@@ -4,15 +4,17 @@ import { db } from '../../../firebase/firebase.config';
 import Button from '../../atoms/Button';
 import Input from '../../atoms/Input';
 import { GENDERS, SIZE_TYPES_BY_GENDER, getSizesForGenderType, getSizeStockKey } from '../../../constants/sizes';
+import { useSettingsStore } from '../../../store/settingsStore';
 
 const EMPTY_FORM = {
-  name: '', description: '', price: 0, costBase: 0, purchaseVat: 0, stockQuantity: 0,
+  name: '', description: '', price: 0, costBase: 0, purchaseVat: 0, purchaseVatRate: 19, stockQuantity: 0,
   category: '', imageUrl: '', images: [],
   discount: 0, isPromo: false, isActive: true,
   handlesSizes: false, genders: [], sizeType: '', sizeStock: {},
 };
 
 const ProductsTab = () => {
+  const { settings, fetchSettings } = useSettingsStore();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -31,6 +33,8 @@ const ProductsTab = () => {
 
   // B6 — new image URL input
   const [newImageUrl, setNewImageUrl] = useState('');
+  const [costInputMode, setCostInputMode] = useState('base');
+  const [costTotalInput, setCostTotalInput] = useState(0);
 
   const fetchData = async () => {
     setIsLoading(true);
@@ -41,7 +45,22 @@ const ProductsTab = () => {
     setIsLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => {
+    fetchSettings();
+    fetchData();
+  }, [fetchSettings]);
+
+  useEffect(() => {
+    const defaultRate = Number(settings.tax?.vatRate);
+    if (!Number.isNaN(defaultRate) && defaultRate >= 0) {
+      setFormData(prev => ({ ...prev, purchaseVatRate: prev.purchaseVatRate ?? defaultRate }));
+    }
+  }, [settings.tax?.vatRate]);
+
+  useEffect(() => {
+    const total = (Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0);
+    setCostTotalInput(total);
+  }, [formData.costBase, formData.purchaseVat]);
 
   // Filtered product list
   const visibleProducts = useMemo(() => {
@@ -100,10 +119,56 @@ const ProductsTab = () => {
 
   const handleInputChange = (e) => {
     const { id, value, type, checked } = e.target;
+    const numericFields = ['price', 'costBase', 'purchaseVat', 'purchaseVatRate', 'stockQuantity', 'discount'];
+    const parsedValue = type === 'checkbox' ? checked : (numericFields.includes(id) ? parseFloat(value) || 0 : value);
+
+    if (id === 'costBase') {
+      setFormData(prev => {
+        const rate = Number(prev.purchaseVatRate) || 0;
+        const base = Number(parsedValue) || 0;
+        const vat = base * rate / 100;
+        return { ...prev, costBase: base, purchaseVat: vat };
+      });
+      return;
+    }
+
+    if (id === 'purchaseVatRate') {
+      setFormData(prev => {
+        const base = Number(prev.costBase) || 0;
+        const rate = Number(parsedValue) || 0;
+        const vat = base * rate / 100;
+        return { ...prev, purchaseVatRate: rate, purchaseVat: vat };
+      });
+      return;
+    }
+
+    if (id === 'purchaseVat') {
+      setFormData(prev => {
+        const base = Number(prev.costBase) || 0;
+        const vat = Number(parsedValue) || 0;
+        const inferredRate = base > 0 ? (vat / base) * 100 : 0;
+        return { ...prev, purchaseVat: vat, purchaseVatRate: inferredRate };
+      });
+      return;
+    }
+
     setFormData(prev => ({
       ...prev,
-      [id]: type === 'checkbox' ? checked : ['price', 'costBase', 'purchaseVat', 'stockQuantity', 'discount'].includes(id) ? parseFloat(value) || 0 : value,
+      [id]: parsedValue,
     }));
+  };
+
+  const handleCostTotalChange = (value) => {
+    const total = Number(value) || 0;
+    setCostTotalInput(total);
+
+    setFormData(prev => {
+      const rate = Number(prev.purchaseVatRate) || 0;
+      const divisor = 1 + (rate / 100);
+      const base = divisor > 0 ? (total / divisor) : total;
+      const vat = total - base;
+      return { ...prev, costBase: base, purchaseVat: vat };
+    });
   };
 
   const handleGenderToggle = (g) => {
@@ -186,6 +251,7 @@ const ProductsTab = () => {
         price: Number(formData.price) || 0,
         costBase: Number(formData.costBase) || 0,
         purchaseVat: Number(formData.purchaseVat) || 0,
+        purchaseVatRate: Number(formData.purchaseVatRate) || 0,
         cost: (Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0),
         stockQuantity: Number(formData.stockQuantity) || 0,
         category: formData.category || '',
@@ -221,6 +287,7 @@ const ProductsTab = () => {
       price: product.price || 0,
       costBase: product.costBase ?? product.cost ?? 0,
       purchaseVat: product.purchaseVat ?? 0,
+      purchaseVatRate: product.purchaseVatRate ?? (Number(settings.tax?.vatRate) || 19),
       stockQuantity: product.stockQuantity || 0,
       category: product.category || '',
       imageUrl: product.imageUrl || '',
@@ -233,6 +300,8 @@ const ProductsTab = () => {
       sizeType: product.sizeType || '',
       sizeStock: product.sizeStock || {},
     });
+    setCostInputMode('base');
+    setCostTotalInput((Number(product.costBase ?? product.cost ?? 0) || 0) + (Number(product.purchaseVat ?? 0) || 0));
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -322,15 +391,62 @@ const ProductsTab = () => {
             <Input id="price" label="Precio de Venta" type="number" value={formData.price} onChange={handleInputChange} required />
             <Input id="discount" label="% Descuento" type="number" value={formData.discount} onChange={handleInputChange} />
           </div>
-          <div className="grid grid-cols-3 gap-4 md:col-span-2">
-            <Input id="costBase" label="Costo Base" type="number" value={formData.costBase} onChange={handleInputChange} required />
-            <Input id="purchaseVat" label="IVA Compra" type="number" value={formData.purchaseVat} onChange={handleInputChange} />
-            <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex flex-col justify-center">
-              <p className="text-[10px] font-bold text-slate-400 uppercase">Costo Total</p>
-              <p className="text-sm font-black text-brand-dark">
-                ${((Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0)).toLocaleString('es-CO')}
-              </p>
+          <div className="md:col-span-2 border border-gray-100 rounded-2xl p-4 space-y-4 bg-gray-50/40">
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Costo de Adquisición con IVA</p>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCostInputMode('base')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${costInputMode === 'base' ? 'bg-brand-dark text-white' : 'bg-white text-slate-500 border border-gray-200'}`}
+                >
+                  Ingresar Base
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCostInputMode('total')}
+                  className={`px-3 py-1.5 rounded-lg text-[10px] font-black uppercase transition-all ${costInputMode === 'total' ? 'bg-brand-dark text-white' : 'bg-white text-slate-500 border border-gray-200'}`}
+                >
+                  Ingresar Total
+                </button>
+              </div>
             </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              {costInputMode === 'base' ? (
+                <Input id="costBase" label="Costo Base" type="number" value={formData.costBase} onChange={handleInputChange} required />
+              ) : (
+                <Input
+                  id="costTotal"
+                  label="Costo Total"
+                  type="number"
+                  value={costTotalInput}
+                  onChange={(e) => handleCostTotalChange(e.target.value)}
+                  required
+                />
+              )}
+
+              <Input
+                id="purchaseVatRate"
+                label="% IVA Compra"
+                type="number"
+                value={formData.purchaseVatRate}
+                onChange={handleInputChange}
+              />
+
+              <Input id="purchaseVat" label="IVA Compra ($)" type="number" value={formData.purchaseVat} onChange={handleInputChange} />
+
+              <div className="bg-white border border-gray-100 rounded-xl px-4 py-3 flex flex-col justify-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Costo Total</p>
+                <p className="text-sm font-black text-brand-dark">
+                  ${((Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0)).toLocaleString('es-CO')}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-[10px] text-slate-400 italic">
+              Puedes ingresar la base o el total. El sistema calcula automáticamente la base/IVA según el porcentaje configurado.
+            </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
             <Input id="stockQuantity" label="Stock Inicial" type="number" value={formData.stockQuantity} onChange={handleInputChange} required />
@@ -603,7 +719,14 @@ const ProductsTab = () => {
                   {savingId === p.id ? (
                     <div className="animate-spin h-4 w-4 border-2 border-brand-gold border-t-transparent rounded-full ml-auto" />
                   ) : (
-                    <div className="flex items-center justify-end gap-2">
+                    <div className="flex items-center justify-end gap-2 flex-wrap">
+                      <button
+                        onClick={() => handleEdit(p)}
+                        className="px-3 py-1.5 rounded-lg text-[10px] font-black uppercase bg-brand-dark text-white hover:bg-brand-gold transition-all"
+                        title="Editar producto completo"
+                      >
+                        Editar
+                      </button>
                       <button onClick={() => handleEdit(p)} className="p-2 hover:bg-brand-gold/10 rounded-full transition-colors" title="Editar">
                         <svg className="w-4 h-4 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                       </button>
