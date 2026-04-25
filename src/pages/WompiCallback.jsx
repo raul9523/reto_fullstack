@@ -23,19 +23,17 @@ const WompiCallback = () => {
   const processCallback = async () => {
     const params = new URLSearchParams(window.location.search);
     const transactionId = params.get('id');
-    const reference    = params.get('reference');   // nuestro orderNumber
-    const rawStatus    = params.get('status');       // APPROVED | DECLINED | VOIDED | ERROR
+    let reference = params.get('reference');
+    let rawStatus = params.get('status');
 
-    if (!transactionId || !reference) {
+    if (!transactionId) {
       setStatus('failed');
       return;
     }
 
-    setOrderNumber(reference);
-    setWompiStatus(rawStatus || '');
-
     try {
-      // 1. Verificar transacción con la API pública de Wompi (no requiere clave secreta)
+      // 1. Verificar transacción con la API de Wompi
+      // Si Wompi omitió reference/status en la URL (ocurre en sandbox), los recuperamos aquí
       const settingsSnap = await getDoc(doc(db, 'settings', 'global'));
       const publicKey = settingsSnap.data()?.wompi?.publicKey || '';
       const isSandbox = publicKey.startsWith('pub_test_');
@@ -51,10 +49,20 @@ const WompiCallback = () => {
         if (res.ok) {
           const data = await res.json();
           verifiedStatus = data.data?.status || rawStatus;
+          if (!reference) reference = data.data?.reference || null;
+          if (!rawStatus) rawStatus = data.data?.status || '';
         }
       } catch {
-        // Si falla la verificación por API, usamos el status del URL (menos seguro pero no rompe)
+        // Si falla la API, usamos los params del URL
       }
+
+      if (!reference) {
+        setStatus('failed');
+        return;
+      }
+
+      setOrderNumber(reference);
+      setWompiStatus(rawStatus || '');
 
       // 2. Buscar la orden por orderNumber
       const ordersSnap = await getDocs(query(collection(db, 'orders'), where('orderNumber', '==', reference)));

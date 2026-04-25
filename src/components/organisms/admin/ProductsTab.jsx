@@ -6,7 +6,7 @@ import Input from '../../atoms/Input';
 import { GENDERS, SIZE_TYPES_BY_GENDER, getSizesForGenderType, getSizeStockKey } from '../../../constants/sizes';
 
 const EMPTY_FORM = {
-  name: '', description: '', price: 0, cost: 0, stockQuantity: 0,
+  name: '', description: '', price: 0, costBase: 0, purchaseVat: 0, stockQuantity: 0,
   category: '', imageUrl: '', images: [],
   discount: 0, isPromo: false, isActive: true,
   handlesSizes: false, genders: [], sizeType: '', sizeStock: {},
@@ -73,7 +73,22 @@ const ProductsTab = () => {
   const handleQuickUpdate = async (product, field, value) => {
     setSavingId(product.id);
     try {
-      const sanitized = ['price', 'cost', 'stockQuantity', 'discount'].includes(field) ? parseFloat(value) || 0 : value;
+      const numericFields = ['price', 'cost', 'costBase', 'purchaseVat', 'stockQuantity', 'discount'];
+      const sanitized = numericFields.includes(field) ? parseFloat(value) || 0 : value;
+
+      if (field === 'costBase' || field === 'purchaseVat') {
+        const nextCostBase = field === 'costBase' ? sanitized : Number(product.costBase ?? product.cost ?? 0) || 0;
+        const nextPurchaseVat = field === 'purchaseVat' ? sanitized : Number(product.purchaseVat ?? 0) || 0;
+        const payload = {
+          costBase: nextCostBase,
+          purchaseVat: nextPurchaseVat,
+          cost: nextCostBase + nextPurchaseVat,
+        };
+        await updateDoc(doc(db, 'products', product.id), payload);
+        setProducts(prev => prev.map(p => p.id === product.id ? { ...p, ...payload } : p));
+        return;
+      }
+
       await updateDoc(doc(db, 'products', product.id), { [field]: sanitized });
       setProducts(prev => prev.map(p => p.id === product.id ? { ...p, [field]: sanitized } : p));
     } catch (e) {
@@ -87,7 +102,7 @@ const ProductsTab = () => {
     const { id, value, type, checked } = e.target;
     setFormData(prev => ({
       ...prev,
-      [id]: type === 'checkbox' ? checked : ['price', 'cost', 'stockQuantity', 'discount'].includes(id) ? parseFloat(value) || 0 : value,
+      [id]: type === 'checkbox' ? checked : ['price', 'costBase', 'purchaseVat', 'stockQuantity', 'discount'].includes(id) ? parseFloat(value) || 0 : value,
     }));
   };
 
@@ -169,7 +184,9 @@ const ProductsTab = () => {
         name: formData.name || '',
         description: formData.description || '',
         price: Number(formData.price) || 0,
-        cost: Number(formData.cost) || 0,
+        costBase: Number(formData.costBase) || 0,
+        purchaseVat: Number(formData.purchaseVat) || 0,
+        cost: (Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0),
         stockQuantity: Number(formData.stockQuantity) || 0,
         category: formData.category || '',
         imageUrl: formData.imageUrl || '',
@@ -202,7 +219,8 @@ const ProductsTab = () => {
       name: product.name || '',
       description: product.description || '',
       price: product.price || 0,
-      cost: product.cost || 0,
+      costBase: product.costBase ?? product.cost ?? 0,
+      purchaseVat: product.purchaseVat ?? 0,
       stockQuantity: product.stockQuantity || 0,
       category: product.category || '',
       imageUrl: product.imageUrl || '',
@@ -304,8 +322,17 @@ const ProductsTab = () => {
             <Input id="price" label="Precio de Venta" type="number" value={formData.price} onChange={handleInputChange} required />
             <Input id="discount" label="% Descuento" type="number" value={formData.discount} onChange={handleInputChange} />
           </div>
+          <div className="grid grid-cols-3 gap-4 md:col-span-2">
+            <Input id="costBase" label="Costo Base" type="number" value={formData.costBase} onChange={handleInputChange} required />
+            <Input id="purchaseVat" label="IVA Compra" type="number" value={formData.purchaseVat} onChange={handleInputChange} />
+            <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex flex-col justify-center">
+              <p className="text-[10px] font-bold text-slate-400 uppercase">Costo Total</p>
+              <p className="text-sm font-black text-brand-dark">
+                ${((Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0)).toLocaleString('es-CO')}
+              </p>
+            </div>
+          </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input id="cost" label="Costo de Adquisición" type="number" value={formData.cost} onChange={handleInputChange} required />
             <Input id="stockQuantity" label="Stock Inicial" type="number" value={formData.stockQuantity} onChange={handleInputChange} required />
           </div>
 
@@ -486,7 +513,9 @@ const ProductsTab = () => {
               <th className="px-6 py-4">Categoría</th>
               <th className="px-6 py-4">Stock</th>
               <th className="px-6 py-4">Venta</th>
-              <th className="px-6 py-4">Costo</th>
+              <th className="px-6 py-4">Costo Base</th>
+              <th className="px-6 py-4">IVA Compra</th>
+              <th className="px-6 py-4">Costo Total</th>
               <th className="px-6 py-4">% Desc</th>
               <th className="px-6 py-4">Promo</th>
               <th className="px-6 py-4">Estado</th>
@@ -536,10 +565,21 @@ const ProductsTab = () => {
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 border border-dashed border-gray-200">
                     <span className="text-[10px] text-slate-400">$</span>
-                    <input type="number" value={p.cost || 0}
-                      onChange={e => handleQuickUpdate(p, 'cost', Number(e.target.value))}
+                    <input type="number" value={p.costBase ?? p.cost ?? 0}
+                      onChange={e => handleQuickUpdate(p, 'costBase', Number(e.target.value))}
                       className="w-20 text-xs bg-transparent border-none font-medium outline-none text-slate-500" />
                   </div>
+                </td>
+                <td className="px-4 py-2">
+                  <div className="flex items-center gap-1 bg-gray-50 rounded-lg px-2 py-1 border border-dashed border-gray-200">
+                    <span className="text-[10px] text-slate-400">$</span>
+                    <input type="number" value={p.purchaseVat ?? 0}
+                      onChange={e => handleQuickUpdate(p, 'purchaseVat', Number(e.target.value))}
+                      className="w-20 text-xs bg-transparent border-none font-medium outline-none text-slate-500" />
+                  </div>
+                </td>
+                <td className="px-4 py-2 text-xs font-black text-slate-700">
+                  ${((Number(p.costBase ?? p.cost ?? 0) || 0) + (Number(p.purchaseVat ?? 0) || 0)).toLocaleString('es-CO')}
                 </td>
                 <td className="px-4 py-2">
                   <div className="flex items-center gap-1">
@@ -577,7 +617,7 @@ const ProductsTab = () => {
             ))}
             {visibleProducts.length === 0 && (
               <tr>
-                <td colSpan={10} className="text-center py-16 text-slate-400 text-sm">
+                <td colSpan={12} className="text-center py-16 text-slate-400 text-sm">
                   {search ? `No hay productos que coincidan con "${search}"` : 'Sin productos'}
                 </td>
               </tr>

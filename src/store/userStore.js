@@ -49,10 +49,11 @@ export const useUserStore = create(
           const firebaseUser = userCredential.user;
 
           // 2. Guardar datos adicionales en Firestore
+          const isMasterAdmin = firebaseUser.email === 'raulpte0211@gmail.com';
           const userData = {
             ...extraData,
             email: firebaseUser.email,
-            role: 'cliente',
+            role: isMasterAdmin ? 'superadmin' : 'cliente',
             createdAt: new Date().toISOString()
           };
           

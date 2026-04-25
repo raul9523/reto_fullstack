@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
-import { db, functions } from '../firebase/firebase.config.js';
+import { db } from '../firebase/firebase.config.js';
 import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
 import { useSettingsStore } from '../store/settingsStore';
@@ -20,6 +19,30 @@ const COLOMBIA_DATA = {
   "Risaralda": ["Pereira", "Dosquebradas"],
   "Caldas": ["Manizales"],
   "Quindío": ["Armenia"]
+};
+
+const normalizeOrderItem = (item, taxSettings) => {
+  const costBase = Number(item.product.costBase ?? item.product.cost ?? 0) || 0;
+  const purchaseVat = Number(item.product.purchaseVat ?? 0) || 0;
+  const costTotal = costBase + purchaseVat;
+  const quantity = Number(item.quantity) || 0;
+  const saleVatRate = taxSettings.invoicesWithVat ? (Number(taxSettings.vatRate) || 0) : 0;
+  const lineSubtotal = (Number(item.product.price) || 0) * quantity;
+
+  return {
+    id: item.product.id,
+    name: item.product.name || '',
+    price: item.product.price || 0,
+    cost: costTotal || (item.product.price * 0.6) || 0,
+    costBase,
+    purchaseVat,
+    saleVatRate,
+    saleVatAmountEstimated: saleVatRate > 0 ? (lineSubtotal * saleVatRate / 100) : 0,
+    quantity,
+    category: item.product.category || '',
+    isBackorder: !!item.isBackorder,
+    ...(item.sizeInfo ? { size: item.sizeInfo.size || '', gender: item.sizeInfo.gender || '' } : {}),
+  };
 };
 
 const Checkout = () => {
@@ -105,6 +128,10 @@ const Checkout = () => {
 
     setIsConfirming(true);
     try {
+      const taxSettings = {
+        invoicesWithVat: !!settings.tax?.invoicesWithVat,
+        vatRate: Number(settings.tax?.vatRate) || 0,
+      };
       const isBackorder = items.some(item => item.isBackorder);
       const totalWithShipping = totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
       const orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
@@ -114,22 +141,21 @@ const Checkout = () => {
       await addDoc(collection(db, 'orders'), {
         orderNumber,
         userId: currentUser.uid,
-        userEmail: currentUser.email,
-        items: items.map(item => ({
-          id: item.product.id,
-          name: item.product.name,
-          price: item.product.price,
-          cost: item.product.cost || (item.product.price * 0.6),
-          quantity: item.quantity,
-          category: item.product.category,
-          isBackorder: !!item.isBackorder,
-          ...(item.sizeInfo ? { size: item.sizeInfo.size, gender: item.sizeInfo.gender } : {}),
-        })),
+        userEmail: currentUser.email || '',
+        items: items.map(item => normalizeOrderItem(item, taxSettings)),
         subtotal: totalAmount,
         shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
         shippingOnDelivery: !!settings.shippingOnDelivery,
         totalAmount: totalWithShipping,
-        shippingInfo,
+        taxConfigSnapshot: taxSettings,
+        shippingInfo: {
+          recipientName: shippingInfo.recipientName || '',
+          recipientPhone: shippingInfo.recipientPhone || '',
+          department: shippingInfo.department || '',
+          city: shippingInfo.city || '',
+          address: shippingInfo.address || '',
+          notes: shippingInfo.notes || '',
+        },
         paymentMethod: 'wompi',
         paymentProvider: 'wompi',
         status: isBackorder ? 'Validación de Encargo' : 'Pendiente de Pago',
@@ -137,23 +163,31 @@ const Checkout = () => {
         createdAt: new Date().toISOString(),
       });
 
-      // 2. Obtener firma de integridad desde Firebase Function
-      const generateSig = httpsCallable(functions, 'generateWompiSignature');
-      const sigResult = await generateSig({ reference: orderNumber, amountInCents, currency: 'COP' });
-      const { signature } = sigResult.data;
+      // 2. Generar firma de integridad SHA-256 en el cliente
+      const integrityKey = settings.wompi?.integrityKey || '';
+      if (!integrityKey) {
+        alert('Configura la clave de integridad de Wompi en el panel admin (Configuración → Wompi).');
+        setIsConfirming(false);
+        return;
+      }
+      const msgBuffer = new TextEncoder().encode(`${orderNumber}${amountInCents}COP${integrityKey}`);
+      const hashBuffer = await window.crypto.subtle.digest('SHA-256', msgBuffer);
+      const signature = Array.from(new Uint8Array(hashBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
 
       // 3. Redirigir a Wompi Checkout
       const publicKey = settings.wompi?.publicKey || '';
       const redirectUrl = `${window.location.origin}/wompi-callback`;
-      const wompiUrl = new URL('https://checkout.wompi.co/p/');
-      wompiUrl.searchParams.set('public-key', publicKey);
-      wompiUrl.searchParams.set('currency', 'COP');
-      wompiUrl.searchParams.set('amount-in-cents', String(amountInCents));
-      wompiUrl.searchParams.set('reference', orderNumber);
-      wompiUrl.searchParams.set('signature:integrity', signature);
-      wompiUrl.searchParams.set('redirect-url', redirectUrl);
-
-      window.location.href = wompiUrl.toString();
+      const params = new URLSearchParams({
+        'public-key': publicKey,
+        'currency': 'COP',
+        'amount-in-cents': String(amountInCents),
+        'reference': orderNumber,
+        'redirect-url': redirectUrl,
+      });
+      // signature:integrity debe tener el colon literal (URLSearchParams lo codificaría como %3A)
+      window.location.href = `https://checkout.wompi.co/p/?${params.toString()}&signature:integrity=${signature}`;
     } catch (error) {
       console.error('Error iniciando pago Wompi:', error);
       alert('Error al iniciar el pago. Intenta nuevamente.');
@@ -170,6 +204,10 @@ const Checkout = () => {
 
     setIsConfirming(true);
     try {
+      const taxSettings = {
+        invoicesWithVat: !!settings.tax?.invoicesWithVat,
+        vatRate: Number(settings.tax?.vatRate) || 0,
+      };
       const isBackorder = items.some(item => item.isBackorder);
       const totalWithShipping = totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
       
@@ -182,21 +220,13 @@ const Checkout = () => {
       const orderData = {
         orderNumber,
         userId: currentUser.uid,
-        userEmail: currentUser.email,
-        items: items.map(item => ({
-          id: item.product.id,
-          name: item.product.name,
-          price: item.product.price,
-          cost: item.product.cost || (item.product.price * 0.6),
-          quantity: item.quantity,
-          category: item.product.category,
-          isBackorder: !!item.isBackorder,
-          ...(item.sizeInfo ? { size: item.sizeInfo.size, gender: item.sizeInfo.gender } : {}),
-        })),
+        userEmail: currentUser.email || '',
+        items: items.map(item => normalizeOrderItem(item, taxSettings)),
         subtotal: totalAmount,
         shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
         shippingOnDelivery: !!settings.shippingOnDelivery,
         totalAmount: totalWithShipping,
+        taxConfigSnapshot: taxSettings,
         shippingInfo,
         paymentMethod: selectedPaymentMethod,
         receiptUrl: shippingInfo.receiptUrl || '', 

@@ -80,6 +80,10 @@ const CreateOrderTab = () => {
     
     setIsSubmitting(true);
     try {
+      const taxSettings = {
+        invoicesWithVat: !!settings.tax?.invoicesWithVat,
+        vatRate: Number(settings.tax?.vatRate) || 0,
+      };
       const orderId = `MAN-${Date.now().toString().slice(-6)}`;
       const orderData = {
         orderNumber: orderId,
@@ -90,6 +94,11 @@ const CreateOrderTab = () => {
           id: item.id,
           name: item.name,
           price: item.price,
+          costBase: Number(item.costBase ?? item.cost ?? 0) || 0,
+          purchaseVat: Number(item.purchaseVat ?? 0) || 0,
+          cost: (Number(item.costBase ?? item.cost ?? 0) || 0) + (Number(item.purchaseVat ?? 0) || 0),
+          saleVatRate: taxSettings.invoicesWithVat ? taxSettings.vatRate : 0,
+          saleVatAmountEstimated: taxSettings.invoicesWithVat ? ((Number(item.price) || 0) * item.quantity * taxSettings.vatRate / 100) : 0,
           quantity: item.quantity,
           category: item.category,
           isBackorder: item.stockQuantity === 0
@@ -98,6 +107,7 @@ const CreateOrderTab = () => {
         shippingCost: shipping,
         shippingOnDelivery: !chargeShipping,
         totalAmount: total,
+        taxConfigSnapshot: taxSettings,
         paymentMethod,
         creditDays: paymentMethod === 'credito' ? creditDays : null,
         status: paymentMethod === 'credito' ? 'Por Cobrar' : 'Pagado',

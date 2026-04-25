@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { collection, getDocs, doc, updateDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase.config';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar } from 'recharts';
+import { useSettingsStore } from '../../../store/settingsStore';
 
 const DashboardTab = () => {
   const [orders, setOrders] = useState([]);
@@ -17,8 +18,10 @@ const DashboardTab = () => {
   const [paymentModal, setPaymentModal] = useState({ open: false, order: null });
   const [paymentForm, setPaymentForm] = useState({ amount: '', date: '', reference: '', receiptUrl: '' });
   const [savingPayment, setSavingPayment] = useState(false);
+  const { settings, fetchSettings } = useSettingsStore();
 
   useEffect(() => {
+    fetchSettings();
     const fetchData = async () => {
       const oSnap = await getDocs(query(collection(db, 'orders'), orderBy('createdAt', 'asc')));
       const os = [];
@@ -43,7 +46,29 @@ const DashboardTab = () => {
       setIsLoading(false);
     };
     fetchData();
-  }, []);
+  }, [fetchSettings]);
+
+  const invoicesWithVat = !!settings.tax?.invoicesWithVat;
+  const vatRate = Number(settings.tax?.vatRate) || 0;
+
+  const getOrderGrossSales = (order) => order.subtotal || (order.totalAmount - (order.shippingCost || 0));
+
+  const getOrderNetSales = (order) => {
+    const gross = getOrderGrossSales(order);
+    if (!invoicesWithVat || vatRate <= 0) return gross;
+    const explicitVat = Number(order.taxSummary?.saleVatTotal);
+    if (!Number.isNaN(explicitVat) && explicitVat > 0) return Math.max(0, gross - explicitVat);
+    return gross / (1 + vatRate / 100);
+  };
+
+  const getItemCostForReport = (item) => {
+    const quantity = Number(item.quantity) || 0;
+    const costBase = Number(item.costBase ?? ((item.cost || 0) - (item.purchaseVat || 0)));
+    const purchaseVat = Number(item.purchaseVat ?? 0);
+    const costTotal = Number(item.cost ?? (costBase + purchaseVat));
+    if (invoicesWithVat) return (Number.isNaN(costBase) ? costTotal : costBase) * quantity;
+    return (Number.isNaN(costTotal) ? 0 : costTotal) * quantity;
+  };
 
   // ... (filtro y stats se mantienen igual)
   const filteredOrders = useMemo(() => {
@@ -65,31 +90,31 @@ const DashboardTab = () => {
   const stats = useMemo(() => {
     let totalSales = 0; let totalCost = 0; let totalUnits = 0; let totalShipping = 0;
     filteredOrders.forEach(o => {
-      totalSales += o.subtotal || o.totalAmount - (o.shippingCost || 0);
+      totalSales += getOrderNetSales(o);
       totalShipping += o.shippingCost || 0;
       o.items.forEach(item => {
         if (filterProduct === 'all' || item.id === filterProduct) {
           totalUnits += item.quantity;
-          totalCost += (item.cost || 0) * item.quantity;
+          totalCost += getItemCostForReport(item);
         }
       });
     });
     const netProfit = totalSales - totalCost;
     return { totalSales, totalCost, totalUnits, totalShipping, netProfit };
-  }, [filteredOrders, filterProduct]);
+  }, [filteredOrders, filterProduct, invoicesWithVat, vatRate]);
 
   const chartData = useMemo(() => {
     const daily = {};
     filteredOrders.forEach(o => {
       const date = new Date(o.createdAt).toLocaleDateString();
       if (!daily[date]) daily[date] = { date, ventas: 0, ganancia: 0 };
-      daily[date].ventas += o.subtotal || o.totalAmount - (o.shippingCost || 0);
+      daily[date].ventas += getOrderNetSales(o);
       let orderCost = 0;
-      o.items.forEach(item => orderCost += (item.cost || 0) * item.quantity);
-      daily[date].ganancia += (o.subtotal || o.totalAmount - (o.shippingCost || 0)) - orderCost;
+      o.items.forEach(item => orderCost += getItemCostForReport(item));
+      daily[date].ganancia += getOrderNetSales(o) - orderCost;
     });
     return Object.values(daily);
-  }, [filteredOrders]);
+  }, [filteredOrders, invoicesWithVat, vatRate]);
 
   // Cartera vencida
   const carteraData = useMemo(() => {
@@ -137,6 +162,44 @@ const DashboardTab = () => {
       .sort((a, b) => b.value - a.value)
       .slice(0, 8); // Top 8 ciudades
   }, [users]);
+
+  const fiscalSummary = useMemo(() => {
+    let salesBase = 0;
+    let purchasesBase = 0;
+    let saleVatGenerated = 0;
+    let purchaseVatPaid = 0;
+
+    filteredOrders.forEach(order => {
+      order.items.forEach(item => {
+        if (filterProduct !== 'all' && item.id !== filterProduct) return;
+
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.price) || 0;
+        const lineSales = unitPrice * quantity;
+
+        const itemSaleVat = Number(item.saleVatAmountEstimated);
+        const inferredSaleVat = invoicesWithVat && vatRate > 0 ? (lineSales * vatRate / 100) : 0;
+
+        salesBase += lineSales;
+        saleVatGenerated += Number.isNaN(itemSaleVat) ? inferredSaleVat : itemSaleVat;
+
+        const itemCostBase = Number(item.costBase ?? ((item.cost || 0) - (item.purchaseVat || 0))) || 0;
+        const itemPurchaseVat = Number(item.purchaseVat ?? 0) || 0;
+
+        purchasesBase += itemCostBase * quantity;
+        purchaseVatPaid += itemPurchaseVat * quantity;
+      });
+    });
+
+    const vatBalance = saleVatGenerated - purchaseVatPaid;
+    return {
+      salesBase,
+      purchasesBase,
+      saleVatGenerated,
+      purchaseVatPaid,
+      vatBalance,
+    };
+  }, [filteredOrders, filterProduct, invoicesWithVat, vatRate]);
 
   const openPaymentModal = (order) => {
     setPaymentForm({ amount: order.totalAmount || '', date: new Date().toISOString().split('T')[0], reference: '', receiptUrl: '' });
@@ -219,6 +282,34 @@ const DashboardTab = () => {
         <MetricCard title="Ganancia Neta" value={`$${stats.netProfit.toLocaleString('es-CO')}`} color="text-green-600" bg="bg-green-50" />
         <MetricCard title="Unds. Vendidas" value={stats.totalUnits} color="text-brand-gold" />
         <MetricCard title="Total Clientes" value={users.length} color="text-slate-500" />
+      </div>
+
+      {/* Resumen Fiscal */}
+      <div className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-5">
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <h3 className="text-lg font-bold text-brand-dark">Resumen Fiscal del Periodo</h3>
+            <p className="text-xs text-slate-400 mt-1">
+              Consolidado para soporte de facturación y conciliación de IVA.
+            </p>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${invoicesWithVat ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+            {invoicesWithVat ? `Factura con IVA (${vatRate}%)` : 'Facturación sin IVA'}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <MetricCard title="Base Ventas" value={`$${fiscalSummary.salesBase.toLocaleString('es-CO')}`} color="text-brand-dark" />
+          <MetricCard title="IVA Generado" value={`$${fiscalSummary.saleVatGenerated.toLocaleString('es-CO')}`} color="text-blue-600" bg="bg-blue-50" />
+          <MetricCard title="Base Compras" value={`$${fiscalSummary.purchasesBase.toLocaleString('es-CO')}`} color="text-slate-600" />
+          <MetricCard title="IVA Compra" value={`$${fiscalSummary.purchaseVatPaid.toLocaleString('es-CO')}`} color="text-red-600" bg="bg-red-50" />
+          <MetricCard
+            title="Saldo IVA"
+            value={`$${fiscalSummary.vatBalance.toLocaleString('es-CO')}`}
+            color={fiscalSummary.vatBalance >= 0 ? 'text-amber-700' : 'text-green-700'}
+            bg={fiscalSummary.vatBalance >= 0 ? 'bg-amber-50' : 'bg-green-50'}
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">

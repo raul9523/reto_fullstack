@@ -5,6 +5,10 @@ import { doc, getDoc, updateDoc, setDoc } from 'firebase/firestore';
 const DEFAULT_SETTINGS = {
   shippingCost: 15000,
   shippingOnDelivery: false,
+  tax: {
+    invoicesWithVat: false,
+    vatRate: 19,
+  },
   logoUrl: '',
   paymentMethods: {
     pse: true,
@@ -27,6 +31,11 @@ const DEFAULT_SETTINGS = {
     onOrderPlaced: true,
     onPaymentConfirmed: true,
     onDispatched: true
+  },
+  wompi: {
+    enabled: false,
+    publicKey: '',
+    integrityKey: '',
   }
 };
 
@@ -45,10 +54,12 @@ export const useSettingsStore = create((set) => ({
         const merged = {
           ...DEFAULT_SETTINGS,
           ...docSnap.data(),
+          tax: { ...DEFAULT_SETTINGS.tax, ...(docSnap.data().tax || {}) },
           emailConfig: { ...DEFAULT_SETTINGS.emailConfig, ...(docSnap.data().emailConfig || {}) },
           emailNotifications: { ...DEFAULT_SETTINGS.emailNotifications, ...(docSnap.data().emailNotifications || {}) },
           paymentMethods: { ...DEFAULT_SETTINGS.paymentMethods, ...(docSnap.data().paymentMethods || {}) },
-          transferInfo: { ...DEFAULT_SETTINGS.transferInfo, ...(docSnap.data().transferInfo || {}) }
+          transferInfo: { ...DEFAULT_SETTINGS.transferInfo, ...(docSnap.data().transferInfo || {}) },
+          wompi: { ...DEFAULT_SETTINGS.wompi, ...(docSnap.data().wompi || {}) }
         };
         set({ settings: merged, isLoading: false });
       } else {

@@ -17,6 +17,7 @@ const SettingsTab = () => {
   const { settings, fetchSettings, updateSettings, isLoading } = useSettingsStore();
   const [localSettings, setLocalSettings] = useState(null);
   const [showPass, setShowPass] = useState(false);
+  const [showWompiKey, setShowWompiKey] = useState(false);
 
   // Payment methods state (Firestore-backed)
   const [paymentMethods, setPaymentMethods] = useState([]);
@@ -189,6 +190,47 @@ const SettingsTab = () => {
         <p className="text-xs text-slate-400 italic">Este valor se sumará al total en el checkout si el cobro contra entrega está desactivado.</p>
       </div>
 
+      {/* Impuestos */}
+      <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
+        <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Impuestos y Facturación</h3>
+        <label className="flex items-center justify-between p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-white transition-colors bg-white">
+          <div className="flex flex-col">
+            <span className="text-sm font-bold text-brand-dark">La empresa factura con IVA</span>
+            <span className="text-[10px] text-slate-400">
+              Si está activo, el sistema separa IVA para reportes e insumos de facturación.
+            </span>
+          </div>
+          <input
+            type="checkbox"
+            checked={localSettings.tax?.invoicesWithVat ?? false}
+            onChange={() => setLocalSettings(prev => ({
+              ...prev,
+              tax: {
+                ...prev.tax,
+                invoicesWithVat: !(prev.tax?.invoicesWithVat ?? false),
+              }
+            }))}
+            className="w-5 h-5 rounded text-brand-gold focus:ring-brand-gold"
+          />
+        </label>
+
+        <Input
+          label="Tasa IVA (%)"
+          type="number"
+          value={localSettings.tax?.vatRate ?? 19}
+          onChange={(e) => setLocalSettings(prev => ({
+            ...prev,
+            tax: {
+              ...prev.tax,
+              vatRate: Math.max(0, parseFloat(e.target.value) || 0),
+            }
+          }))}
+        />
+        <p className="text-xs text-slate-400 italic">
+          Esta tasa se guarda como referencia para cálculo de IVA en pedidos y reportes.
+        </p>
+      </div>
+
       {/* Métodos de Pago */}
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-4">
         <div className="flex items-center justify-between">
@@ -355,17 +397,25 @@ const SettingsTab = () => {
           value={localSettings.wompi?.publicKey || ''}
           onChange={(e) => setLocalSettings(prev => ({ ...prev, wompi: { ...prev.wompi, publicKey: e.target.value } }))}
         />
-        <div className="bg-amber-50 border border-amber-100 rounded-2xl p-4 space-y-2 text-xs">
-          <p className="font-bold text-amber-700 uppercase tracking-wide text-[10px]">Configuración requerida (solo una vez)</p>
-          <p className="text-amber-600">La <strong>clave de integridad</strong> (secreta) NO va aquí — se configura en Firebase Functions:</p>
-          <code className="block bg-white border border-amber-200 rounded-lg px-3 py-2 text-amber-800 font-mono text-[11px]">
-            firebase functions:secrets:set WOMPI_INTEGRITY_SECRET
-          </code>
-          <p className="text-amber-500">Luego despliega las funciones: <span className="font-mono">firebase deploy --only functions</span></p>
-          <p className="text-amber-500">
-            Crea tus llaves en <span className="font-semibold">comercios.wompi.co</span> → Desarrolladores → Llaves de API
-          </p>
+        <div className="relative">
+          <Input
+            label="Clave de Integridad Wompi"
+            type={showWompiKey ? 'text' : 'password'}
+            placeholder="prod_integrity_... o test_integrity_..."
+            value={localSettings.wompi?.integrityKey || ''}
+            onChange={(e) => setLocalSettings(prev => ({ ...prev, wompi: { ...prev.wompi, integrityKey: e.target.value } }))}
+          />
+          <button
+            type="button"
+            onClick={() => setShowWompiKey(v => !v)}
+            className="absolute right-3 bottom-3 text-xs text-slate-400 hover:text-brand-gold transition-colors"
+          >
+            {showWompiKey ? 'Ocultar' : 'Mostrar'}
+          </button>
         </div>
+        <p className="text-[10px] text-slate-400">
+          Obtén ambas claves en <span className="font-semibold">comercios.wompi.co</span> → Desarrolladores → Llaves de API.
+        </p>
       </div>
 
       {/* Notificaciones por Correo */}

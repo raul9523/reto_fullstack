@@ -12,6 +12,7 @@ const CategoriesTab = React.lazy(() => import('../components/organisms/admin/Cat
 const SettingsTab = React.lazy(() => import('../components/organisms/admin/SettingsTab'));
 const UsersTab = React.lazy(() => import('../components/organisms/admin/UsersTab'));
 const CreateOrderTab = React.lazy(() => import('../components/organisms/admin/CreateOrderTab'));
+const SubscriptionsTab = React.lazy(() => import('../components/organisms/admin/SubscriptionsTab'));
 
 const MASTER_ADMIN = 'raulpte0211@gmail.com';
 
@@ -190,6 +191,7 @@ const AdminDashboard = () => {
     { id: 'users', label: '👥 Usuarios', color: 'text-brand-dark' },
     { id: 'categories', label: '🏷️ Categorías', color: 'text-brand-dark' },
     { id: 'settings', label: '⚙️ Configuración', color: 'text-brand-dark' },
+    { id: 'subscriptions', label: '💳 Suscripciones', color: 'text-brand-dark' },
   ];
 
   return (
@@ -237,6 +239,7 @@ const AdminDashboard = () => {
             { activeTab === 'settings' && <SettingsTab /> }
             { activeTab === 'users' && <UsersTab /> }
             { activeTab === 'create_order' && <CreateOrderTab /> }
+            { activeTab === 'subscriptions' && <SubscriptionsTab /> }
           </React.Suspense>
           
           {activeTab === 'orders' && (
