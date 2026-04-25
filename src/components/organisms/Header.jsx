@@ -5,6 +5,7 @@ import useProductStore from '../../store/productStore';
 import { useUserStore } from '../../store/userStore';
 import useNotificationStore from '../../store/notificationStore';
 import { useSettingsStore } from '../../store/settingsStore';
+import { useTenantStore } from '../../store/tenantStore';
 
 const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartClick }) => {
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
@@ -13,6 +14,10 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
   const { currentUser, logout } = useUserStore();
   const { notifications, unreadCount, listenToNotifications, markAsRead, markAllAsRead } = useNotificationStore();
   const { settings, fetchSettings } = useSettingsStore();
+  const { tenant } = useTenantStore();
+
+  const brandLogoUrl = tenant?.logoUrl || settings?.logoUrl;
+  const brandName = tenant?.brandName || 'Duo Dreams';
 
   React.useEffect(() => {
     fetchSettings();
@@ -32,16 +37,16 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
           
           {/* Logo / Brand */}
           <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
-            {settings?.logoUrl ? (
+            {brandLogoUrl ? (
               <img 
-                src={settings.logoUrl} 
-                alt="Duo Dreams Logo" 
+                src={brandLogoUrl}
+                alt={`${brandName} Logo`}
                 className="h-8 sm:h-10 w-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
               <>
-                <span className="text-2xl font-bold text-brand-gold">DÚO</span>
-                <span className="text-2xl font-bold text-slate-800 ml-1">DREAMS</span>
+                <span className="text-2xl font-bold text-brand-gold">{brandName.split(' ')[0]?.toUpperCase() || 'DUO'}</span>
+                <span className="text-2xl font-bold text-slate-800 ml-1">{brandName.split(' ').slice(1).join(' ').toUpperCase() || 'DREAMS'}</span>
               </>
             )}
           </div>

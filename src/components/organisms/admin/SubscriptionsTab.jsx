@@ -16,10 +16,10 @@ const ALL_MODULES = [
 ];
 
 const DEFAULT_PLANS = [
-  { id: 'gratis',      name: 'Gratis',       price: 0,      trialDays: 0, maxProducts: 10,  maxAdmins: 1,  modules: { dashboard: true, imagenes: true }, order: 1 },
-  { id: 'basico',      name: 'Básico',       price: 49900,  trialDays: 5, maxProducts: 50,  maxAdmins: 1,  modules: { dashboard: true, imagenes: true, cartera: true, descuentos: true, tallas: true }, order: 2 },
-  { id: 'profesional', name: 'Profesional',  price: 99900,  trialDays: 5, maxProducts: 200, maxAdmins: 3,  modules: { dashboard: true, imagenes: true, cartera: true, descuentos: true, tallas: true, email: true, multi_admin: true, exportar: true }, order: 3 },
-  { id: 'empresarial', name: 'Empresarial',  price: 199900, trialDays: 5, maxProducts: -1,  maxAdmins: -1, modules: Object.fromEntries(ALL_MODULES.map(m => [m.id, true])), order: 4 },
+  { id: 'gratis',      name: 'Gratis',       price: 0,      trialDays: 0, maxProducts: 10,  maxAdmins: 1,  modules: { dashboard: true, imagenes: true }, order: 1, isPublishedInStore: true, description: 'Empieza a vender con funciones esenciales.' },
+  { id: 'basico',      name: 'Básico',       price: 49900,  trialDays: 5, maxProducts: 50,  maxAdmins: 1,  modules: { dashboard: true, imagenes: true, cartera: true, descuentos: true, tallas: true }, order: 2, isPublishedInStore: true, description: 'Ideal para tiendas en crecimiento.' },
+  { id: 'profesional', name: 'Profesional',  price: 99900,  trialDays: 5, maxProducts: 200, maxAdmins: 3,  modules: { dashboard: true, imagenes: true, cartera: true, descuentos: true, tallas: true, email: true, multi_admin: true, exportar: true }, order: 3, isPublishedInStore: true, description: 'Automatiza y escala con más módulos.' },
+  { id: 'empresarial', name: 'Empresarial',  price: 199900, trialDays: 5, maxProducts: -1,  maxAdmins: -1, modules: Object.fromEntries(ALL_MODULES.map(m => [m.id, true])), order: 4, isPublishedInStore: true, description: 'Capacidad completa para operaciones avanzadas.' },
 ];
 
 const SubscriptionsTab = () => {
@@ -193,6 +193,7 @@ const SubscriptionsTab = () => {
                 { label: 'Máx. Productos (-1=Ilimitado)', key: 'maxProducts', type: 'number' },
                 { label: 'Máx. Admins (-1=Ilimitado)',   key: 'maxAdmins',   type: 'number' },
                 { label: 'Días de prueba gratis',         key: 'trialDays',   type: 'number' },
+                { label: 'Descripción para tienda',       key: 'description', type: 'text' },
               ].map(f => (
                 <div key={f.key} className="space-y-1">
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f.label}</label>
@@ -202,6 +203,15 @@ const SubscriptionsTab = () => {
                 </div>
               ))}
             </div>
+            <label className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50 mb-6 cursor-pointer">
+              <span className="text-xs font-bold text-slate-600">Publicar este plan en la tienda principal</span>
+              <input
+                type="checkbox"
+                checked={editingPlan.isPublishedInStore !== false}
+                onChange={() => setEditingPlan(p => ({ ...p, isPublishedInStore: !(p.isPublishedInStore !== false) }))}
+                className="w-4 h-4 accent-brand-gold"
+              />
+            </label>
             <div className="space-y-2 mb-8">
               <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Módulos incluidos</label>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">

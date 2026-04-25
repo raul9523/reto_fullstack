@@ -4,7 +4,7 @@ import Button from '../atoms/Button';
 import { GENDERS, getSizesForGenderType, getSizeStockKey } from '../../constants/sizes';
 
 const ProductCard = ({ product, onAddToCart }) => {
-  const { name, price, description, imageUrl, images, stockQuantity, discount, isPromo, handlesSizes, genders, sizeType, sizeStock } = product;
+  const { name, price, description, imageUrl, images, stockQuantity, discount, isPromo, handlesSizes, genders, sizeType, sizeStock, isSubscription, trialDays } = product;
   const finalPrice = discount > 0 ? price - (price * discount / 100) : price;
 
   const allImages = [imageUrl, ...(images || [])].filter(Boolean);
@@ -26,6 +26,10 @@ const ProductCard = ({ product, onAddToCart }) => {
   };
 
   const handleAddClick = () => {
+    if (isSubscription) {
+      onAddToCart && onAddToCart(product, null);
+      return;
+    }
     if (handlesSizes && activeGenders.length > 0) {
       setSizeModal(true);
     } else {
@@ -93,13 +97,15 @@ const ProductCard = ({ product, onAddToCart }) => {
           {/* Labels */}
           <div className="absolute top-4 left-4 flex flex-col gap-2">
             {isPromo && <div className="bg-brand-dark text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">Destacado</div>}
+            {isSubscription && <div className="bg-emerald-600 text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">Suscripción</div>}
+            {isSubscription && trialDays > 0 && <div className="bg-emerald-100 text-emerald-700 px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-sm">{trialDays} días gratis</div>}
             {discount > 0 && <div className="bg-brand-gold text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">-{discount}%</div>}
-            {stockQuantity <= 5 && stockQuantity > 0 && (
+            {!isSubscription && stockQuantity <= 5 && stockQuantity > 0 && (
               <div className="bg-white/90 backdrop-blur-sm text-brand-gold px-3 py-1 rounded-full text-[10px] font-bold tracking-widest uppercase shadow-sm">
                 Últimas {stockQuantity}
               </div>
             )}
-            {stockQuantity === 0 && (
+            {!isSubscription && stockQuantity === 0 && (
               <div className="bg-brand-gold text-white px-3 py-1 rounded-full text-[10px] font-black tracking-widest uppercase shadow-lg">Por Encargo</div>
             )}
           </div>
@@ -135,11 +141,11 @@ const ProductCard = ({ product, onAddToCart }) => {
             <div className="flex flex-col w-full">
               <Button
                 onClick={handleAddClick}
-                className={`w-full py-2 text-[10px] uppercase tracking-widest font-bold ${stockQuantity === 0 ? 'bg-brand-gold hover:bg-brand-dark' : ''}`}
+                className={`w-full py-2 text-[10px] uppercase tracking-widest font-bold ${isSubscription || stockQuantity === 0 ? 'bg-brand-gold hover:bg-brand-dark' : ''}`}
               >
-                {stockQuantity === 0 ? 'Solicitar Encargo' : handlesSizes ? 'Elegir Talla' : 'Añadir'}
+                {isSubscription ? 'Elegir Plan' : stockQuantity === 0 ? 'Solicitar Encargo' : handlesSizes ? 'Elegir Talla' : 'Añadir'}
               </Button>
-              {stockQuantity === 0 && (
+              {!isSubscription && stockQuantity === 0 && (
                 <p className="text-[8px] text-slate-400 mt-2 leading-tight italic">
                   * Sujeto a validación (15-30 días). Sin compromiso de venta inicial.
                 </p>

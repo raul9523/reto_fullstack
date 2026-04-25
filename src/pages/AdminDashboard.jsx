@@ -5,6 +5,7 @@ import { useUserStore } from '../store/userStore';
 import { useCartStore } from '../store/cartStore';
 import MainLayout from '../components/templates/MainLayout';
 import { seedInitialData } from '../firebase/seedData';
+import { activateSubscriptionFromOrder } from '../firebase/subscriptionProvisioning';
 
 const DashboardTab = React.lazy(() => import('../components/organisms/admin/DashboardTab'));
 const ProductsTab = React.lazy(() => import('../components/organisms/admin/ProductsTab'));
@@ -66,6 +67,7 @@ const AdminDashboard = () => {
     try {
       // 1. Descontar Stock (ya que para transferencia no se hizo en el checkout)
       for (const item of order.items) {
+        if (item.isSubscription) continue;
         if (item.isBackorder) continue; // Efecto cero en stock para encargos aceptados
         
         const productRef = doc(db, 'products', item.id);
@@ -79,6 +81,11 @@ const AdminDashboard = () => {
       // 2. Actualizar estado de la orden
       const orderRef = doc(db, 'orders', order.id);
       await updateDoc(orderRef, { status: 'Pagado' });
+
+      await activateSubscriptionFromOrder({
+        orderId: order.id,
+        orderData: { ...order, status: 'Pagado' },
+      });
       
       setOrders(prev => prev.map(o => o.id === order.id ? { ...o, status: 'Pagado' } : o));
 
@@ -109,6 +116,15 @@ const AdminDashboard = () => {
     setUpdatingId(orderId);
     try {
       await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+      if (newStatus === 'Pagado' || newStatus === 'Facturado') {
+        const targetOrder = orders.find(o => o.id === orderId);
+        if (targetOrder) {
+          await activateSubscriptionFromOrder({
+            orderId,
+            orderData: { ...targetOrder, status: newStatus },
+          });
+        }
+      }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       alert(`Pedido actualizado a: ${newStatus}`);
     } catch (error) {

@@ -7,6 +7,7 @@ import { useSettingsStore } from '../store/settingsStore';
 import MainLayout from '../components/templates/MainLayout';
 import Button from '../components/atoms/Button';
 import Input from '../components/atoms/Input';
+import { activateSubscriptionFromOrder } from '../firebase/subscriptionProvisioning';
 
 const COLOMBIA_DATA = {
   "Antioquia": ["Medellín", "Envigado", "Itagüí", "Bello", "Rionegro", "Sabaneta"],
@@ -40,6 +41,8 @@ const normalizeOrderItem = (item, taxSettings) => {
     saleVatAmountEstimated: saleVatRate > 0 ? (lineSubtotal * saleVatRate / 100) : 0,
     quantity,
     category: item.product.category || '',
+    isSubscription: !!item.product.isSubscription,
+    planId: item.product.planId || null,
     isBackorder: !!item.isBackorder,
     ...(item.sizeInfo ? { size: item.sizeInfo.size || '', gender: item.sizeInfo.gender || '' } : {}),
   };
@@ -67,6 +70,11 @@ const Checkout = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
+
+  const hasSubscriptionOrder = useMemo(
+    () => items.some(item => item.product.isSubscription),
+    [items]
+  );
 
   // Effect 1: fetch settings + payment methods once on mount
   useEffect(() => {
@@ -121,7 +129,7 @@ const Checkout = () => {
   };
 
   const handleWompiPayment = async () => {
-    if (!shippingInfo.recipientName || !shippingInfo.address) {
+    if (!hasSubscriptionOrder && (!shippingInfo.recipientName || !shippingInfo.address)) {
       alert('Completa la información de envío antes de continuar.');
       return;
     }
@@ -133,7 +141,8 @@ const Checkout = () => {
         vatRate: Number(settings.tax?.vatRate) || 0,
       };
       const isBackorder = items.some(item => item.isBackorder);
-      const totalWithShipping = totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
+      const effectiveShipping = hasSubscriptionOrder ? 0 : (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
+      const totalWithShipping = totalAmount + effectiveShipping;
       const orderNumber = `ORD-${Date.now().toString().slice(-8)}`;
       const amountInCents = Math.round(totalWithShipping * 100);
 
@@ -144,9 +153,10 @@ const Checkout = () => {
         userEmail: currentUser.email || '',
         items: items.map(item => normalizeOrderItem(item, taxSettings)),
         subtotal: totalAmount,
-        shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
-        shippingOnDelivery: !!settings.shippingOnDelivery,
+        shippingCost: effectiveShipping,
+        shippingOnDelivery: hasSubscriptionOrder ? false : !!settings.shippingOnDelivery,
         totalAmount: totalWithShipping,
+        orderType: hasSubscriptionOrder ? 'subscription' : 'product',
         taxConfigSnapshot: taxSettings,
         shippingInfo: {
           recipientName: shippingInfo.recipientName || '',
@@ -209,7 +219,8 @@ const Checkout = () => {
         vatRate: Number(settings.tax?.vatRate) || 0,
       };
       const isBackorder = items.some(item => item.isBackorder);
-      const totalWithShipping = totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
+      const effectiveShipping = hasSubscriptionOrder ? 0 : (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0));
+      const totalWithShipping = totalAmount + effectiveShipping;
       
       // Determinar estado inicial y si descuenta stock de una vez
       const isInstantPayment = selectedPaymentMethod === 'pse' || selectedPaymentMethod === 'card';
@@ -223,9 +234,10 @@ const Checkout = () => {
         userEmail: currentUser.email || '',
         items: items.map(item => normalizeOrderItem(item, taxSettings)),
         subtotal: totalAmount,
-        shippingCost: settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0),
-        shippingOnDelivery: !!settings.shippingOnDelivery,
+        shippingCost: effectiveShipping,
+        shippingOnDelivery: hasSubscriptionOrder ? false : !!settings.shippingOnDelivery,
         totalAmount: totalWithShipping,
+        orderType: hasSubscriptionOrder ? 'subscription' : 'product',
         taxConfigSnapshot: taxSettings,
         shippingInfo,
         paymentMethod: selectedPaymentMethod,
@@ -236,12 +248,13 @@ const Checkout = () => {
       };
 
       // 1. Guardar el pedido en Firestore
-      await addDoc(collection(db, 'orders'), orderData);
+      const orderRef = await addDoc(collection(db, 'orders'), orderData);
 
       // 2. Lógica condicionada al tipo de pago (Notificaciones Internas)
       if (isInstantPayment) {
         // DESCONTAR STOCK INMEDIATAMENTE
         for (const item of items) {
+          if (item.product.isSubscription) continue;
           const productRef = doc(db, 'products', item.product.id);
           const productSnap = await getDoc(productRef);
           if (productSnap.exists()) {
@@ -249,6 +262,14 @@ const Checkout = () => {
             await updateDoc(productRef, { stockQuantity: newStock });
           }
         }
+
+        await activateSubscriptionFromOrder({
+          orderId: orderRef.id,
+          orderData: {
+            ...orderData,
+            status: 'Pagado',
+          },
+        });
 
         // Notificar al cliente
         await addDoc(collection(db, 'notifications'), {
@@ -371,6 +392,7 @@ const Checkout = () => {
 
               <div className="space-y-6">
                 {/* Datos del Destinatario (Solo si no es la misma dirección o siempre para confirmar) */}
+                {!hasSubscriptionOrder && (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <Input 
                     id="recipientName"
@@ -391,8 +413,9 @@ const Checkout = () => {
                     required
                   />
                 </div>
+                )}
 
-                {!isSameAddress && (
+                {!hasSubscriptionOrder && !isSameAddress && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-fade-in">
                     <div className="space-y-1">
                       <label className="text-xs font-bold text-slate-400 uppercase tracking-widest ml-1">Departamento</label>
@@ -428,6 +451,7 @@ const Checkout = () => {
                   </div>
                 )}
 
+                {!hasSubscriptionOrder && (
                 <Input 
                   id="address"
                   label="Dirección Exacta"
@@ -437,10 +461,11 @@ const Checkout = () => {
                   disabled={isSameAddress}
                   required
                 />
+                )}
 
                 <Input 
                   id="notes"
-                  label="Indicaciones para el repartidor (Opcional)"
+                  label={hasSubscriptionOrder ? 'Notas (Opcional)' : 'Indicaciones para el repartidor (Opcional)'}
                   value={shippingInfo.notes}
                   onChange={handleInputChange}
                   placeholder="Ej: Portería, Apto 301, Casa blanca..."
@@ -627,12 +652,12 @@ const Checkout = () => {
                 <div className="flex justify-between text-slate-500">
                   <span>Envío</span>
                   <span className={settings.shippingOnDelivery ? 'text-brand-gold font-bold italic text-[10px]' : (settings.shippingCost > 0 ? 'text-slate-800' : 'text-green-600 font-medium')}>
-                    {settings.shippingOnDelivery ? 'Pagas al recibir (Flete)' : (settings.shippingCost > 0 ? `$${settings.shippingCost.toLocaleString('es-CO')}` : 'Gratis')}
+                    {hasSubscriptionOrder ? 'No aplica' : (settings.shippingOnDelivery ? 'Pagas al recibir (Flete)' : (settings.shippingCost > 0 ? `$${settings.shippingCost.toLocaleString('es-CO')}` : 'Gratis'))}
                   </span>
                 </div>
                 <div className="flex justify-between text-xl font-bold text-brand-dark pt-2 border-t border-gray-100">
                   <span>Total a Pagar</span>
-                  <span>${(totalAmount + (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0))).toLocaleString('es-CO')}</span>
+                  <span>${(totalAmount + (hasSubscriptionOrder ? 0 : (settings.shippingOnDelivery ? 0 : (settings.shippingCost || 0)))).toLocaleString('es-CO')}</span>
                 </div>
               </div>
 

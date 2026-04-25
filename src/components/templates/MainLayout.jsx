@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import PropTypes from 'prop-types';
 import Header from '../organisms/Header';
 import ShoppingCart from '../organisms/ShoppingCart';
+import { useTenantStore } from '../../store/tenantStore';
 
 const MainLayout = ({ children, user, onLoginClick, onLogoutClick, cartItemCount }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { tenant } = useTenantStore();
+  const brandName = tenant?.brandName || 'DÚO DREAMS';
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -22,7 +25,7 @@ const MainLayout = ({ children, user, onLoginClick, onLogoutClick, cartItemCount
 
       <footer className="bg-white border-t border-gray-200 mt-auto py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-slate-500">
-          <p>&copy; {new Date().getFullYear()} DÚO DREAMS. All rights reserved.</p>
+          <p>&copy; {new Date().getFullYear()} {brandName.toUpperCase()}. All rights reserved.</p>
         </div>
       </footer>
 

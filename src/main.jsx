@@ -2,6 +2,7 @@ import { StrictMode, useEffect, lazy, Suspense } from 'react'
 import { createRoot } from 'react-dom/client'
 import './main.css'
 import { useUserStore } from './store/userStore';
+import { useTenantStore } from './store/tenantStore';
 
 const Home = lazy(() => import('./pages/Home.jsx'));
 const Registro = lazy(() => import('./registro/Registro.jsx'));
@@ -21,11 +22,16 @@ const PageFallback = () => (
 
 const App = () => {
   const { initAuthListener } = useUserStore();
+  const { initTenant } = useTenantStore();
 
   useEffect(() => {
     const unsubscribe = initAuthListener();
     return () => unsubscribe();
   }, [initAuthListener]);
+
+  useEffect(() => {
+    initTenant();
+  }, [initTenant]);
 
   const path = window.location.pathname;
 

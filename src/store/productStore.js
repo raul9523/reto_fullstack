@@ -2,6 +2,30 @@ import { create } from 'zustand';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
 
+const SUBSCRIPTION_CATEGORY = 'Planes de Suscripción';
+
+const toPlanProduct = (plan) => ({
+  id: `plan_${plan.id}`,
+  sourceId: plan.id,
+  name: plan.name || 'Plan',
+  description: plan.description || `Plan ${plan.name || ''} con módulos incluidos para tu tienda.`,
+  price: Number(plan.price) || 0,
+  discount: 0,
+  imageUrl: plan.imageUrl || 'https://images.unsplash.com/photo-1556740749-887f6717d7e4?auto=format&fit=crop&q=80&w=1200',
+  images: [],
+  stockQuantity: 999999,
+  category: SUBSCRIPTION_CATEGORY,
+  isPromo: false,
+  isActive: plan.isPublishedInStore !== false,
+  isSubscription: true,
+  planId: plan.id,
+  modules: plan.modules || {},
+  trialDays: Number(plan.trialDays || 0),
+  maxProducts: Number(plan.maxProducts ?? 0),
+  maxAdmins: Number(plan.maxAdmins ?? 1),
+  order: Number(plan.order || 0),
+});
+
 const useProductStore = create((set, get) => ({
   // Estado inicial
   products: [],
@@ -30,6 +54,17 @@ const useProductStore = create((set, get) => ({
         return (a.order || 99) - (b.order || 99);
       });
 
+      const plansSnap = await getDocs(collection(db, 'plans'));
+      const hasPublishedPlans = plansSnap.docs.some(d => d.data().isPublishedInStore !== false);
+      if (hasPublishedPlans && !sorted.some(c => c.name === SUBSCRIPTION_CATEGORY)) {
+        sorted.push({
+          id: 'subscription_plans',
+          name: SUBSCRIPTION_CATEGORY,
+          isActive: true,
+          order: 998,
+        });
+      }
+
       set({ categories: sorted });
     } catch (error) {
       console.error("Error fetching categories:", error);
@@ -40,17 +75,25 @@ const useProductStore = create((set, get) => ({
   fetchProducts: async () => {
     set({ isLoading: true, error: null, products: [], filteredProducts: [] });
     try {
-      const querySnapshot = await getDocs(collection(db, "products"));
+      const querySnapshot = await getDocs(collection(db, 'products'));
+      const plansSnap = await getDocs(collection(db, 'plans'));
       const allProducts = [];
       querySnapshot.forEach((doc) => {
         allProducts.push({ id: doc.id, ...doc.data() });
       });
+
+      const publishedPlanProducts = plansSnap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter(plan => plan.isPublishedInStore !== false)
+        .map(toPlanProduct);
       
       // Filtrar por activos para la tienda
-      const activeProducts = allProducts.filter(p => p.isActive !== false);
+      const activeProducts = [...allProducts.filter(p => p.isActive !== false), ...publishedPlanProducts];
       
       // Ordenar: Promociones primero
       const sortedProducts = activeProducts.sort((a, b) => {
+        if (a.isSubscription && !b.isSubscription) return 1;
+        if (!a.isSubscription && b.isSubscription) return -1;
         if (a.isPromo && !b.isPromo) return -1;
         if (!a.isPromo && b.isPromo) return 1;
         return (a.order || 0) - (b.order || 0);

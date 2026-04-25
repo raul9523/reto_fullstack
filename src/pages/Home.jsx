@@ -4,6 +4,7 @@ import ProductGallery from '../components/organisms/ProductGallery';
 import useProductStore from '../store/productStore';
 import { useCartStore } from '../store/cartStore';
 import Button from '../components/atoms/Button';
+import { useTenantStore } from '../store/tenantStore';
 
 const Home = () => {
   const {
@@ -11,6 +12,8 @@ const Home = () => {
     isLoading, searchQuery, selectedCategory, setSelectedCategory,
   } = useProductStore();
   const { addToCart, itemCount } = useCartStore();
+  const { tenant } = useTenantStore();
+  const brandName = tenant?.brandName || 'Duo Dreams';
 
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
@@ -41,7 +44,7 @@ const Home = () => {
       {/* Hero Section */}
       <div className="relative h-[400px] mb-10 rounded-3xl overflow-hidden bg-brand-dark flex items-center px-8 sm:px-16">
         <div className="relative z-10 max-w-xl animate-fade-in-up">
-          <h1 className="text-5xl font-bold text-white mb-4">Sueños con Estilo</h1>
+          <h1 className="text-5xl font-bold text-white mb-4">{brandName}</h1>
           <p className="text-brand-gold text-xl mb-8">Descubre nuestra colección exclusiva de pijamas y accesorios premium.</p>
           <Button variant="primary" onClick={() => window.scrollTo({ top: 600, behavior: 'smooth' })}>
             Explorar Colección

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, doc, updateDoc, getDoc, addDoc, query, where } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config';
 import { useCartStore } from '../store/cartStore';
+import { activateSubscriptionFromOrder } from '../firebase/subscriptionProvisioning';
 
 const STATUS_MAP = {
   APPROVED: { label: 'Pago Aprobado', orderStatus: 'Pagado', success: true },
@@ -94,6 +95,7 @@ const WompiCallback = () => {
       // 4. Si fue aprobado: descontar stock y enviar notificaciones
       if (mapped.success) {
         for (const item of (orderData.items || [])) {
+          if (item.isSubscription) continue;
           try {
             const productRef = doc(db, 'products', item.id);
             const productSnap = await getDoc(productRef);
@@ -103,6 +105,14 @@ const WompiCallback = () => {
             }
           } catch { /* producto ya eliminado, ignorar */ }
         }
+
+        await activateSubscriptionFromOrder({
+          orderId: orderDoc.id,
+          orderData: {
+            ...orderData,
+            status: 'Pagado',
+          },
+        });
 
         await addDoc(collection(db, 'notifications'), {
           userId: orderData.userId,
