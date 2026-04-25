@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config.js';
+import { useTenantStore } from './tenantStore';
 
 const SUBSCRIPTION_CATEGORY = 'Planes de Suscripción';
 
@@ -39,15 +40,21 @@ const useProductStore = create((set, get) => ({
   // Acción para descargar categorías
   fetchCategories: async () => {
     try {
+      const tenantId = useTenantStore.getState().tenant?.id || 'global';
       // Descargar TODAS las categorías sin filtros iniciales para no perder nada
       const querySnapshot = await getDocs(collection(db, "categories"));
       const cats = [];
       querySnapshot.forEach((doc) => {
         cats.push({ id: doc.id, ...doc.data() });
       });
+
+      const tenantCategories = cats.filter((cat) => {
+        if (tenantId === 'global') return !cat.storeId || cat.storeId === 'global';
+        return cat.storeId === tenantId;
+      });
       
       // Ordenar en memoria: los activos primero, y respetar el orden si existe
-      const sorted = cats.sort((a, b) => {
+      const sorted = tenantCategories.sort((a, b) => {
         // Primero por estado activo
         if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
         // Luego por el campo 'order'
@@ -56,7 +63,7 @@ const useProductStore = create((set, get) => ({
 
       const plansSnap = await getDocs(collection(db, 'plans'));
       const hasPublishedPlans = plansSnap.docs.some(d => d.data().isPublishedInStore !== false);
-      if (hasPublishedPlans && !sorted.some(c => c.name === SUBSCRIPTION_CATEGORY)) {
+      if (tenantId === 'global' && hasPublishedPlans && !sorted.some(c => c.name === SUBSCRIPTION_CATEGORY)) {
         sorted.push({
           id: 'subscription_plans',
           name: SUBSCRIPTION_CATEGORY,
@@ -75,6 +82,7 @@ const useProductStore = create((set, get) => ({
   fetchProducts: async () => {
     set({ isLoading: true, error: null, products: [], filteredProducts: [] });
     try {
+      const tenantId = useTenantStore.getState().tenant?.id || 'global';
       const querySnapshot = await getDocs(collection(db, 'products'));
       const plansSnap = await getDocs(collection(db, 'plans'));
       const allProducts = [];
@@ -82,13 +90,19 @@ const useProductStore = create((set, get) => ({
         allProducts.push({ id: doc.id, ...doc.data() });
       });
 
-      const publishedPlanProducts = plansSnap.docs
-        .map(d => ({ id: d.id, ...d.data() }))
-        .filter(plan => plan.isPublishedInStore !== false)
-        .map(toPlanProduct);
+      const publishedPlanProducts = tenantId === 'global'
+        ? plansSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(plan => plan.isPublishedInStore !== false)
+          .map(toPlanProduct)
+        : [];
       
       // Filtrar por activos para la tienda
-      const activeProducts = [...allProducts.filter(p => p.isActive !== false), ...publishedPlanProducts];
+      const tenantProducts = allProducts.filter((p) => {
+        if (tenantId === 'global') return (!p.storeId || p.storeId === 'global') && p.isActive !== false;
+        return p.storeId === tenantId && p.isActive !== false;
+      });
+      const activeProducts = [...tenantProducts, ...publishedPlanProducts];
       
       // Ordenar: Promociones primero
       const sortedProducts = activeProducts.sort((a, b) => {

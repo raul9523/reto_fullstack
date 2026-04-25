@@ -118,5 +118,11 @@ export const activateSubscriptionFromOrder = async ({ orderId, orderData }) => {
     createdAt: existing?.createdAt || now,
   }, { merge: true });
 
+  await setDoc(doc(db, 'users', userId), {
+    ownedStoreId: storeId,
+    ownedSubdomain: subdomain,
+    platformRole: 'cliente',
+  }, { merge: true });
+
   return { storeId, subdomain, brandName, planId: plan.id };
 };

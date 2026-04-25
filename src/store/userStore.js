@@ -4,6 +4,24 @@ import { auth, db } from '../firebase/firebase.config';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
+const enrichWithSubscription = async (baseUser) => {
+  try {
+    const subscriptionDoc = await getDoc(doc(db, 'subscriptions', baseUser.uid));
+    if (!subscriptionDoc.exists()) return baseUser;
+    const sub = subscriptionDoc.data();
+    return {
+      ...baseUser,
+      ownedStoreId: sub.storeId || baseUser.ownedStoreId || null,
+      ownedSubdomain: sub.subdomain || baseUser.ownedSubdomain || null,
+      subscriptionStatus: sub.status || null,
+      subscriptionPlanId: sub.planId || null,
+      subscriptionModules: sub.modules || {},
+    };
+  } catch {
+    return baseUser;
+  }
+};
+
 export const useUserStore = create(
   persist(
     (set, get) => ({
@@ -23,8 +41,10 @@ export const useUserStore = create(
           const userDoc = await getDoc(userDocRef);
           
           if (userDoc.exists()) {
+            const baseUser = { uid: firebaseUser.uid, email: firebaseUser.email, ...userDoc.data() };
+            const enrichedUser = await enrichWithSubscription(baseUser);
             set({ 
-              currentUser: { uid: firebaseUser.uid, email: firebaseUser.email, ...userDoc.data() },
+              currentUser: enrichedUser,
               isLoading: false 
             });
           } else {
@@ -105,8 +125,10 @@ export const useUserStore = create(
               const userDocRef = doc(db, 'users', firebaseUser.uid);
               const userDoc = await getDoc(userDocRef);
               if (userDoc.exists()) {
+                const baseUser = { uid: firebaseUser.uid, email: firebaseUser.email, ...userDoc.data() };
+                const enrichedUser = await enrichWithSubscription(baseUser);
                 set({ 
-                  currentUser: { uid: firebaseUser.uid, email: firebaseUser.email, ...userDoc.data() },
+                  currentUser: enrichedUser,
                   isLoading: false 
                 });
               } else {

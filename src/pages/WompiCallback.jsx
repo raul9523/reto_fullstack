@@ -15,6 +15,7 @@ const WompiCallback = () => {
   const [status, setStatus] = useState('verifying'); // verifying | success | failed | already_processed
   const [orderNumber, setOrderNumber] = useState('');
   const [wompiStatus, setWompiStatus] = useState('');
+  const [isSubscriptionOrder, setIsSubscriptionOrder] = useState(false);
   const { clearCart } = useCartStore();
 
   useEffect(() => {
@@ -74,6 +75,7 @@ const WompiCallback = () => {
 
       const orderDoc = ordersSnap.docs[0];
       const orderData = orderDoc.data();
+      setIsSubscriptionOrder((orderData.items || []).some(item => item.isSubscription));
 
       // Evitar reprocesar si ya fue actualizado
       if (orderData.status === 'Pagado' || orderData.wompiTransactionId) {
@@ -168,9 +170,15 @@ const WompiCallback = () => {
         </p>
         <p className="text-slate-400 text-sm mb-8">Recibirás un correo con los detalles de tu compra.</p>
         <div className="flex gap-3 flex-wrap justify-center">
-          <a href="/mis-pedidos" className="bg-brand-dark text-white font-black px-8 py-3 rounded-2xl hover:bg-brand-gold transition-all uppercase text-sm tracking-wide">
-            Ver mis pedidos
-          </a>
+          {isSubscriptionOrder ? (
+            <a href="/admin?onboarding=1" className="bg-brand-dark text-white font-black px-8 py-3 rounded-2xl hover:bg-brand-gold transition-all uppercase text-sm tracking-wide">
+              Configurar mi tienda
+            </a>
+          ) : (
+            <a href="/mis-pedidos" className="bg-brand-dark text-white font-black px-8 py-3 rounded-2xl hover:bg-brand-gold transition-all uppercase text-sm tracking-wide">
+              Ver mis pedidos
+            </a>
+          )}
           <a href="/" className="border border-gray-200 text-slate-600 font-bold px-8 py-3 rounded-2xl hover:bg-gray-50 transition-all text-sm">
             Volver a la tienda
           </a>

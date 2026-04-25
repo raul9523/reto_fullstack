@@ -23,7 +23,7 @@ const Home = () => {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
-  }, [fetchProducts, fetchCategories]);
+  }, [fetchProducts, fetchCategories, tenant?.id]);
 
   const indexOfLastItem = currentPage * itemsPerPage;
   const indexOfFirstItem = indexOfLastItem - itemsPerPage;

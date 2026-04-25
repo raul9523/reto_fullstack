@@ -8,6 +8,7 @@ import MainLayout from '../components/templates/MainLayout';
 import Button from '../components/atoms/Button';
 import Input from '../components/atoms/Input';
 import { activateSubscriptionFromOrder } from '../firebase/subscriptionProvisioning';
+import { useTenantStore } from '../store/tenantStore';
 
 const COLOMBIA_DATA = {
   "Antioquia": ["Medellín", "Envigado", "Itagüí", "Bello", "Rionegro", "Sabaneta"],
@@ -52,6 +53,7 @@ const Checkout = () => {
   const { currentUser } = useUserStore();
   const { items, totalAmount, clearCart, itemCount } = useCartStore();
   const { settings, fetchSettings } = useSettingsStore();
+  const { tenant } = useTenantStore();
   
   const [paymentMethods, setPaymentMethods] = useState([]);
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState('');
@@ -70,6 +72,7 @@ const Checkout = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
   const [orderConfirmed, setOrderConfirmed] = useState(false);
+  const [postCheckoutPath, setPostCheckoutPath] = useState('/');
 
   const hasSubscriptionOrder = useMemo(
     () => items.some(item => item.product.isSubscription),
@@ -158,6 +161,8 @@ const Checkout = () => {
         totalAmount: totalWithShipping,
         orderType: hasSubscriptionOrder ? 'subscription' : 'product',
         taxConfigSnapshot: taxSettings,
+        storeId: tenant?.id || 'global',
+        storeSubdomain: tenant?.subdomain || null,
         shippingInfo: {
           recipientName: shippingInfo.recipientName || '',
           recipientPhone: shippingInfo.recipientPhone || '',
@@ -239,6 +244,8 @@ const Checkout = () => {
         totalAmount: totalWithShipping,
         orderType: hasSubscriptionOrder ? 'subscription' : 'product',
         taxConfigSnapshot: taxSettings,
+        storeId: tenant?.id || 'global',
+        storeSubdomain: tenant?.subdomain || null,
         shippingInfo,
         paymentMethod: selectedPaymentMethod,
         receiptUrl: shippingInfo.receiptUrl || '', 
@@ -270,6 +277,7 @@ const Checkout = () => {
             status: 'Pagado',
           },
         });
+        if (hasSubscriptionOrder) setPostCheckoutPath('/admin?onboarding=1');
 
         // Notificar al cliente
         await addDoc(collection(db, 'notifications'), {
@@ -352,8 +360,8 @@ const Checkout = () => {
           <p className="text-slate-500 mb-8 max-w-md">
             Tu pedido ha sido procesado exitosamente. Recibirás un correo con los detalles de tu compra en unos minutos.
           </p>
-          <Button onClick={() => window.location.href = '/'}>
-            Volver a la Tienda
+          <Button onClick={() => window.location.href = postCheckoutPath}>
+            {postCheckoutPath.includes('onboarding=1') ? 'Configurar Mi Tienda' : 'Volver a la Tienda'}
           </Button>
         </div>
       </MainLayout>

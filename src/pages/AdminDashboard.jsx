@@ -6,6 +6,9 @@ import { useCartStore } from '../store/cartStore';
 import MainLayout from '../components/templates/MainLayout';
 import { seedInitialData } from '../firebase/seedData';
 import { activateSubscriptionFromOrder } from '../firebase/subscriptionProvisioning';
+import { useTenantStore } from '../store/tenantStore';
+import Input from '../components/atoms/Input';
+import Button from '../components/atoms/Button';
 
 const DashboardTab = React.lazy(() => import('../components/organisms/admin/DashboardTab'));
 const ProductsTab = React.lazy(() => import('../components/organisms/admin/ProductsTab'));
@@ -20,6 +23,7 @@ const MASTER_ADMIN = 'raulpte0211@gmail.com';
 const AdminDashboard = () => {
   const { currentUser } = useUserStore();
   const { itemCount } = useCartStore();
+  const { tenant } = useTenantStore();
   
   // Persistir pestaña activa
   const [activeTab, setActiveTab] = useState(() => {
@@ -32,15 +36,42 @@ const AdminDashboard = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
   const [deletingOrderIds, setDeletingOrderIds] = useState(new Set());
   const [orderInvoiceFilter, setOrderInvoiceFilter] = useState('all');
+  const [onboardingData, setOnboardingData] = useState({
+    storeName: '',
+    logoUrl: '',
+    bankName: '',
+    accountType: 'Ahorros',
+    accountNumber: '',
+    accountHolder: '',
+    receiptEmail: '',
+    wompiEnabled: false,
+    wompiPublicKey: '',
+    wompiIntegrityKey: '',
+  });
+  const [onboardingModules, setOnboardingModules] = useState({});
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [savingOnboarding, setSavingOnboarding] = useState(false);
+
+  const isMasterAdmin = currentUser && currentUser.email === MASTER_ADMIN;
+  const isGlobalAdmin = currentUser && currentUser.role === 'admin';
+  const isTenantOwnerAdmin = currentUser && currentUser.ownedStoreId && tenant?.id && currentUser.ownedStoreId === tenant.id;
+  const hasAccess = !!(isMasterAdmin || isGlobalAdmin || isTenantOwnerAdmin);
 
   useEffect(() => {
     localStorage.setItem('adminActiveTab', activeTab);
   }, [activeTab]);
 
-  const hasAccess = currentUser && (currentUser.email === MASTER_ADMIN || currentUser.role === 'admin');
+  useEffect(() => {
+    if (isTenantOwnerAdmin && activeTab !== 'settings') {
+      setActiveTab('settings');
+    }
+  }, [isTenantOwnerAdmin, activeTab]);
   
   useEffect(() => {
-    if (!hasAccess) return;
+    if (!hasAccess || isTenantOwnerAdmin) {
+      setIsLoading(false);
+      return;
+    }
     seedInitialData();
 
     const fetchAllOrders = async () => {
@@ -60,7 +91,105 @@ const AdminDashboard = () => {
     };
 
     fetchAllOrders();
-  }, [currentUser, hasAccess]);
+  }, [currentUser, hasAccess, isTenantOwnerAdmin]);
+
+  useEffect(() => {
+    if (!isTenantOwnerAdmin) return;
+    const initOnboarding = async () => {
+      const storeId = tenant.id;
+      const subscriptionSnap = await getDoc(doc(db, 'subscriptions', currentUser.uid));
+      const modules = subscriptionSnap.exists() ? (subscriptionSnap.data().modules || {}) : {};
+      setOnboardingModules(modules);
+
+      const settingsSnap = await getDoc(doc(db, 'store_settings', storeId));
+      const currentSettings = settingsSnap.exists() ? settingsSnap.data() : {};
+
+      const storeSnap = await getDoc(doc(db, 'stores', storeId));
+      const storeData = storeSnap.exists() ? storeSnap.data() : {};
+
+      const storeName = currentSettings.brandName || storeData.brandName || '';
+
+      setOnboardingData(prev => ({
+        ...prev,
+        storeName,
+        logoUrl: currentSettings.logoUrl || '',
+        bankName: currentSettings.transferInfo?.bankName || '',
+        accountType: currentSettings.transferInfo?.accountType || 'Ahorros',
+        accountNumber: currentSettings.transferInfo?.accountNumber || '',
+        accountHolder: currentSettings.transferInfo?.accountHolder || '',
+        receiptEmail: currentSettings.transferInfo?.receiptEmail || '',
+        wompiEnabled: currentSettings.wompi?.enabled || false,
+        wompiPublicKey: currentSettings.wompi?.publicKey || '',
+        wompiIntegrityKey: currentSettings.wompi?.integrityKey || '',
+      }));
+
+      const onboardingFlag = new URLSearchParams(window.location.search).get('onboarding') === '1';
+      setShowOnboarding(onboardingFlag || !storeName?.trim());
+    };
+
+    initOnboarding();
+  }, [isTenantOwnerAdmin, tenant?.id, currentUser?.uid]);
+
+  const handleSaveOnboarding = async () => {
+    if (!onboardingData.storeName.trim()) {
+      alert('El nombre de la tienda es obligatorio.');
+      return;
+    }
+    if ((onboardingModules.pagos_online || onboardingModules.dominio) && onboardingData.wompiEnabled && !onboardingData.wompiPublicKey.trim()) {
+      alert('Si activas Wompi debes ingresar al menos la clave pública.');
+      return;
+    }
+
+    setSavingOnboarding(true);
+    try {
+      const storeId = tenant.id;
+      const now = new Date().toISOString();
+      const canUseOnlinePayments = !!onboardingModules.pagos_online;
+
+      await updateDoc(doc(db, 'stores', storeId), {
+        brandName: onboardingData.storeName.trim(),
+        updatedAt: now,
+      });
+
+      await updateDoc(doc(db, 'subscriptions', currentUser.uid), {
+        storeName: onboardingData.storeName.trim(),
+        updatedAt: now,
+      });
+
+      await updateDoc(doc(db, 'store_settings', storeId), {
+        brandName: onboardingData.storeName.trim(),
+        logoUrl: onboardingData.logoUrl.trim(),
+        transferInfo: {
+          bankName: onboardingData.bankName.trim(),
+          accountType: onboardingData.accountType,
+          accountNumber: onboardingData.accountNumber.trim(),
+          accountHolder: onboardingData.accountHolder.trim(),
+          receiptEmail: onboardingData.receiptEmail.trim(),
+          instructions: '',
+        },
+        wompi: {
+          enabled: canUseOnlinePayments ? !!onboardingData.wompiEnabled : false,
+          publicKey: canUseOnlinePayments ? onboardingData.wompiPublicKey.trim() : '',
+          integrityKey: canUseOnlinePayments ? onboardingData.wompiIntegrityKey.trim() : '',
+        },
+        updatedAt: now,
+      });
+
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('onboarding') === '1') {
+        params.delete('onboarding');
+        const nextQs = params.toString();
+        window.history.replaceState({}, '', `${window.location.pathname}${nextQs ? `?${nextQs}` : ''}`);
+      }
+
+      setShowOnboarding(false);
+      alert('Configuración inicial guardada.');
+    } catch (error) {
+      alert(`Error guardando configuración: ${error.message}`);
+    } finally {
+      setSavingOnboarding(false);
+    }
+  };
 
   const handleConfirmPayment = async (order) => {
     setUpdatingId(order.id);
@@ -220,6 +349,10 @@ const AdminDashboard = () => {
     { id: 'subscriptions', label: '💳 Suscripciones', color: 'text-brand-dark' },
   ];
 
+  const visibleTabs = isTenantOwnerAdmin
+    ? [{ id: 'settings', label: '⚙️ Configuración Inicial', color: 'text-brand-dark' }]
+    : tabs;
+
   return (
     <MainLayout cartItemCount={itemCount}>
       <div className="max-w-7xl mx-auto py-10 px-4">
@@ -241,7 +374,7 @@ const AdminDashboard = () => {
 
         {/* Tabs de Navegación */}
         <div className="flex overflow-x-auto pb-4 mb-8 gap-2 no-scrollbar">
-          {tabs.map(tab => (
+          {visibleTabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
@@ -259,16 +392,89 @@ const AdminDashboard = () => {
         {/* Contenido de Tabs */}
         <div className="min-h-[500px]">
           <React.Suspense fallback={<div className="py-20 text-center text-slate-400">Cargando módulo...</div>}>
-            {activeTab === 'dashboard' && <DashboardTab />}
-            {activeTab === 'products' && <ProductsTab />}
-            {activeTab === 'categories' && <CategoriesTab />}
-            { activeTab === 'settings' && <SettingsTab /> }
-            { activeTab === 'users' && <UsersTab /> }
-            { activeTab === 'create_order' && <CreateOrderTab /> }
-            { activeTab === 'subscriptions' && <SubscriptionsTab /> }
+            {!isTenantOwnerAdmin && activeTab === 'dashboard' && <DashboardTab />}
+            {!isTenantOwnerAdmin && activeTab === 'products' && <ProductsTab />}
+            {!isTenantOwnerAdmin && activeTab === 'categories' && <CategoriesTab />}
+            {!isTenantOwnerAdmin && activeTab === 'settings' && <SettingsTab />}
+            {!isTenantOwnerAdmin && activeTab === 'users' && <UsersTab />}
+            {!isTenantOwnerAdmin && activeTab === 'create_order' && <CreateOrderTab />}
+            {!isTenantOwnerAdmin && activeTab === 'subscriptions' && <SubscriptionsTab />}
+
+            {isTenantOwnerAdmin && activeTab === 'settings' && (
+              <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 space-y-6">
+                <div>
+                  <h2 className="text-xl font-bold text-brand-dark">Configuración Inicial de tu Tienda</h2>
+                  <p className="text-xs text-slate-400 mt-1">Completa estos datos para activar tu marca y medios de pago.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <Input
+                    label="Nombre de la tienda *"
+                    value={onboardingData.storeName}
+                    onChange={(e) => setOnboardingData(prev => ({ ...prev, storeName: e.target.value }))}
+                    placeholder="Ej: Boutique Luna"
+                  />
+                  <Input
+                    label="Logo URL (opcional)"
+                    value={onboardingData.logoUrl}
+                    onChange={(e) => setOnboardingData(prev => ({ ...prev, logoUrl: e.target.value }))}
+                    placeholder="https://..."
+                  />
+                </div>
+
+                <div className="border border-gray-100 rounded-2xl p-5 space-y-4">
+                  <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Datos Bancarios</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Input label="Banco" value={onboardingData.bankName} onChange={(e) => setOnboardingData(prev => ({ ...prev, bankName: e.target.value }))} />
+                    <select
+                      value={onboardingData.accountType}
+                      onChange={(e) => setOnboardingData(prev => ({ ...prev, accountType: e.target.value }))}
+                      className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 text-sm"
+                    >
+                      <option value="Ahorros">Ahorros</option>
+                      <option value="Corriente">Corriente</option>
+                    </select>
+                    <Input label="Número de cuenta" value={onboardingData.accountNumber} onChange={(e) => setOnboardingData(prev => ({ ...prev, accountNumber: e.target.value }))} />
+                    <Input label="Titular" value={onboardingData.accountHolder} onChange={(e) => setOnboardingData(prev => ({ ...prev, accountHolder: e.target.value }))} />
+                    <Input label="Email comprobantes" value={onboardingData.receiptEmail} onChange={(e) => setOnboardingData(prev => ({ ...prev, receiptEmail: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="border border-gray-100 rounded-2xl p-5 space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Wompi</h3>
+                    {!onboardingModules.pagos_online && (
+                      <span className="text-[10px] font-black uppercase px-2 py-1 rounded-lg bg-amber-100 text-amber-700">Bloqueado por plan</span>
+                    )}
+                  </div>
+
+                  <label className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50">
+                    <span className="text-sm font-bold text-brand-dark">Activar Wompi</span>
+                    <input
+                      type="checkbox"
+                      checked={onboardingData.wompiEnabled}
+                      onChange={() => setOnboardingData(prev => ({ ...prev, wompiEnabled: !prev.wompiEnabled }))}
+                      disabled={!onboardingModules.pagos_online}
+                      className="w-4 h-4 accent-brand-gold"
+                    />
+                  </label>
+
+                  <div className={`grid grid-cols-1 md:grid-cols-2 gap-4 ${!onboardingModules.pagos_online ? 'opacity-50 pointer-events-none' : ''}`}>
+                    <Input label="Wompi Public Key" value={onboardingData.wompiPublicKey} onChange={(e) => setOnboardingData(prev => ({ ...prev, wompiPublicKey: e.target.value }))} />
+                    <Input label="Wompi Integrity Key" value={onboardingData.wompiIntegrityKey} onChange={(e) => setOnboardingData(prev => ({ ...prev, wompiIntegrityKey: e.target.value }))} />
+                  </div>
+                </div>
+
+                <div className="flex justify-end">
+                  <Button onClick={handleSaveOnboarding} disabled={savingOnboarding}>
+                    {savingOnboarding ? 'Guardando...' : 'Guardar Configuración'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </React.Suspense>
           
-          {activeTab === 'orders' && (
+          {!isTenantOwnerAdmin && activeTab === 'orders' && (
             <div className="bg-white rounded-3xl border border-gray-100 shadow-sm animate-fade-in">
               <div className="p-5 border-b border-gray-50 flex items-center justify-between gap-4">
                 <div>
@@ -486,6 +692,12 @@ const AdminDashboard = () => {
                 <div className="py-20 text-center text-slate-400">No hay pedidos registrados.</div>
               )}
               </div>
+            </div>
+          )}
+
+          {isTenantOwnerAdmin && showOnboarding && activeTab !== 'settings' && (
+            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 mt-4">
+              <p className="text-sm font-bold text-amber-700">Completa primero la configuración inicial de tu tienda para continuar.</p>
             </div>
           )}
         </div>
