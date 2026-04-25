@@ -14,6 +14,7 @@ const DashboardTab = () => {
   const [dateRange, setDateRange] = useState('all');
   const [filterCategory, setFilterCategory] = useState('all');
   const [filterProduct, setFilterProduct] = useState('all');
+  const [invoiceFilter, setInvoiceFilter] = useState('all');
 
   const [paymentModal, setPaymentModal] = useState({ open: false, order: null });
   const [paymentForm, setPaymentForm] = useState({ amount: '', date: '', reference: '', receiptUrl: '' });
@@ -169,7 +170,13 @@ const DashboardTab = () => {
     let saleVatGenerated = 0;
     let purchaseVatPaid = 0;
 
-    filteredOrders.forEach(order => {
+    const fiscalOrders = filteredOrders.filter((order) => {
+      if (invoiceFilter === 'invoiced') return order.status === 'Facturado';
+      if (invoiceFilter === 'pending') return order.status !== 'Facturado';
+      return true;
+    });
+
+    fiscalOrders.forEach(order => {
       order.items.forEach(item => {
         if (filterProduct !== 'all' && item.id !== filterProduct) return;
 
@@ -193,13 +200,85 @@ const DashboardTab = () => {
 
     const vatBalance = saleVatGenerated - purchaseVatPaid;
     return {
+      orderCount: fiscalOrders.length,
       salesBase,
       purchasesBase,
       saleVatGenerated,
       purchaseVatPaid,
       vatBalance,
     };
-  }, [filteredOrders, filterProduct, invoicesWithVat, vatRate]);
+  }, [filteredOrders, filterProduct, invoicesWithVat, vatRate, invoiceFilter]);
+
+  const handleExportFiscalCsv = () => {
+    const filteredByInvoice = filteredOrders.filter((order) => {
+      if (invoiceFilter === 'invoiced') return order.status === 'Facturado';
+      if (invoiceFilter === 'pending') return order.status !== 'Facturado';
+      return true;
+    });
+
+    const lines = [
+      ['Orden', 'Fecha', 'Estado', 'Total', 'BaseVentas', 'IvaGenerado', 'BaseCompras', 'IvaCompra'].join(','),
+    ];
+
+    filteredByInvoice.forEach((order) => {
+      let orderSalesBase = 0;
+      let orderSaleVat = 0;
+      let orderPurchaseBase = 0;
+      let orderPurchaseVat = 0;
+
+      (order.items || []).forEach((item) => {
+        if (filterProduct !== 'all' && item.id !== filterProduct) return;
+        const quantity = Number(item.quantity) || 0;
+        const unitPrice = Number(item.price) || 0;
+        const lineSales = unitPrice * quantity;
+
+        const itemSaleVat = Number(item.saleVatAmountEstimated);
+        const inferredSaleVat = invoicesWithVat && vatRate > 0 ? (lineSales * vatRate / 100) : 0;
+
+        orderSalesBase += lineSales;
+        orderSaleVat += Number.isNaN(itemSaleVat) ? inferredSaleVat : itemSaleVat;
+
+        const itemCostBase = Number(item.costBase ?? ((item.cost || 0) - (item.purchaseVat || 0))) || 0;
+        const itemPurchaseVat = Number(item.purchaseVat ?? 0) || 0;
+
+        orderPurchaseBase += itemCostBase * quantity;
+        orderPurchaseVat += itemPurchaseVat * quantity;
+      });
+
+      lines.push([
+        order.orderNumber || '',
+        new Date(order.createdAt).toLocaleDateString('es-CO'),
+        order.status || '',
+        Number(order.totalAmount || 0).toFixed(2),
+        orderSalesBase.toFixed(2),
+        orderSaleVat.toFixed(2),
+        orderPurchaseBase.toFixed(2),
+        orderPurchaseVat.toFixed(2),
+      ].join(','));
+    });
+
+    lines.push([
+      'TOTAL',
+      '',
+      '',
+      '',
+      fiscalSummary.salesBase.toFixed(2),
+      fiscalSummary.saleVatGenerated.toFixed(2),
+      fiscalSummary.purchasesBase.toFixed(2),
+      fiscalSummary.purchaseVatPaid.toFixed(2),
+    ].join(','));
+
+    const blob = new Blob([`\uFEFF${lines.join('\n')}`], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    const suffix = invoiceFilter === 'invoiced' ? 'facturados' : invoiceFilter === 'pending' ? 'no_facturados' : 'todos';
+    link.setAttribute('href', url);
+    link.setAttribute('download', `resumen_fiscal_${suffix}_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
 
   const openPaymentModal = (order) => {
     setPaymentForm({ amount: order.totalAmount || '', date: new Date().toISOString().split('T')[0], reference: '', receiptUrl: '' });
@@ -296,6 +375,31 @@ const DashboardTab = () => {
           <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${invoicesWithVat ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
             {invoicesWithVat ? `Factura con IVA (${vatRate}%)` : 'Facturación sin IVA'}
           </span>
+        </div>
+
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Filtro Facturación</label>
+            <select
+              value={invoiceFilter}
+              onChange={(e) => setInvoiceFilter(e.target.value)}
+              className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-500 outline-none"
+            >
+              <option value="all">Todos</option>
+              <option value="pending">No facturados</option>
+              <option value="invoiced">Facturados</option>
+            </select>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-slate-400 font-bold">Pedidos en cálculo: {fiscalSummary.orderCount}</span>
+            <button
+              type="button"
+              onClick={handleExportFiscalCsv}
+              className="bg-brand-dark text-white px-4 py-2 rounded-xl text-xs font-black uppercase hover:bg-brand-gold transition-all"
+            >
+              Exportar CSV
+            </button>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">

@@ -30,6 +30,7 @@ const AdminDashboard = () => {
   const [updatingId, setUpdatingId] = useState(null);
   const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
   const [deletingOrderIds, setDeletingOrderIds] = useState(new Set());
+  const [orderInvoiceFilter, setOrderInvoiceFilter] = useState('all');
 
   useEffect(() => {
     localStorage.setItem('adminActiveTab', activeTab);
@@ -183,6 +184,15 @@ const AdminDashboard = () => {
     );
   }
 
+  const visibleOrders = orders.filter((order) => {
+    if (orderInvoiceFilter === 'invoiced') return order.status === 'Facturado';
+    if (orderInvoiceFilter === 'pending') return order.status !== 'Facturado';
+    return true;
+  });
+
+  const pendingInvoiceCount = orders.filter(o => o.status !== 'Facturado').length;
+  const invoicedCount = orders.filter(o => o.status === 'Facturado').length;
+
   const tabs = [
     { id: 'dashboard', label: '📊 Dashboard', color: 'text-brand-gold' },
     { id: 'orders', label: '📦 Pedidos', color: 'text-brand-dark' },
@@ -248,10 +258,23 @@ const AdminDashboard = () => {
                 <div>
                   <h2 className="text-lg font-bold text-brand-dark">Pedidos</h2>
                   <p className="text-xs text-slate-400">
-                    {orders.length} pedido{orders.length !== 1 ? 's' : ''}
+                    {visibleOrders.length} de {orders.length} pedido{orders.length !== 1 ? 's' : ''}
                     {selectedOrderIds.size > 0 && ` · ${selectedOrderIds.size} seleccionado${selectedOrderIds.size > 1 ? 's' : ''}`}
                   </p>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    Sin facturar: <span className="font-bold text-amber-600">{pendingInvoiceCount}</span> · Facturados: <span className="font-bold text-green-600">{invoicedCount}</span>
+                  </p>
                 </div>
+                <div className="flex items-center gap-3">
+                  <select
+                    value={orderInvoiceFilter}
+                    onChange={(e) => setOrderInvoiceFilter(e.target.value)}
+                    className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 text-xs font-bold text-slate-500 outline-none"
+                  >
+                    <option value="all">Todos</option>
+                    <option value="pending">No facturados</option>
+                    <option value="invoiced">Facturados</option>
+                  </select>
                 {selectedOrderIds.size > 0 && (
                   <button
                     onClick={() => handleDeleteOrders([...selectedOrderIds])}
@@ -261,6 +284,7 @@ const AdminDashboard = () => {
                     {deletingOrderIds.size > 0 ? 'Eliminando…' : `Eliminar (${selectedOrderIds.size})`}
                   </button>
                 )}
+                </div>
               </div>
               <div className="overflow-x-auto">
               <table className="w-full text-left">
@@ -269,10 +293,10 @@ const AdminDashboard = () => {
                     <th className="px-4 py-4 w-10">
                       <input
                         type="checkbox"
-                        checked={orders.length > 0 && orders.every(o => selectedOrderIds.has(o.id))}
+                        checked={visibleOrders.length > 0 && visibleOrders.every(o => selectedOrderIds.has(o.id))}
                         onChange={() => {
-                          const allSelected = orders.every(o => selectedOrderIds.has(o.id));
-                          setSelectedOrderIds(allSelected ? new Set() : new Set(orders.map(o => o.id)));
+                          const allSelected = visibleOrders.every(o => selectedOrderIds.has(o.id));
+                          setSelectedOrderIds(allSelected ? new Set() : new Set(visibleOrders.map(o => o.id)));
                         }}
                         className="w-4 h-4 rounded text-brand-gold focus:ring-brand-gold"
                       />
@@ -286,7 +310,7 @@ const AdminDashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
-                  {orders.map((order) => (
+                  {visibleOrders.map((order) => (
                     <tr key={order.id} className={`transition-colors ${deletingOrderIds.has(order.id) ? 'opacity-40' : 'hover:bg-gray-50/50'} ${selectedOrderIds.has(order.id) ? 'bg-brand-gold/5' : ''}`}>
                       <td className="px-4 py-4">
                         <input
@@ -304,6 +328,9 @@ const AdminDashboard = () => {
                         )}
                         {order.isManual && (
                           <span className="block text-[8px] bg-blue-500 text-white px-2 py-0.5 rounded-full mt-1 w-fit">MANUAL</span>
+                        )}
+                        {order.status !== 'Facturado' && (
+                          <span className="block text-[8px] bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full mt-1 w-fit">SIN FACTURAR</span>
                         )}
                       </td>
                       <td className="px-6 py-4">
@@ -324,6 +351,7 @@ const AdminDashboard = () => {
                         <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                           order.status === 'Validación de Encargo' ? 'bg-brand-gold/20 text-brand-gold animate-pulse' :
                           order.status === 'Validación de Pago' ? 'bg-red-100 text-red-600 animate-pulse' :
+                          order.status === 'Facturado' ? 'bg-emerald-100 text-emerald-700' :
                           order.status === 'Despachado' ? 'bg-purple-100 text-purple-600' :
                           order.status === 'Entregado' ? 'bg-green-100 text-green-600' :
                           order.status === 'Pagado' ? 'bg-blue-100 text-blue-600' : 'bg-gray-100'
@@ -357,6 +385,16 @@ const AdminDashboard = () => {
                               {updatingId === order.id ? '...' : 'Aceptar Encargo'}
                             </button>
                           )}
+
+                          {order.status !== 'Facturado' && (
+                            <button
+                              onClick={() => handleUpdateStatus(order.id, 'Facturado')}
+                              className="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-emerald-700 transition-all"
+                              disabled={updatingId === order.id}
+                            >
+                              {updatingId === order.id ? '...' : 'Marcar Facturado'}
+                            </button>
+                          )}
                           
                           <select 
                             value={order.status}
@@ -377,6 +415,7 @@ const AdminDashboard = () => {
                             <option value="Por Cobrar">Por Cobrar</option>
                             <option value="Despachado">Despachado</option>
                             <option value="Entregado">Entregado</option>
+                            <option value="Facturado">Facturado</option>
                             <option value="Cancelado">Cancelado</option>
                           </select>
 
@@ -427,7 +466,7 @@ const AdminDashboard = () => {
                   ))}
                 </tbody>
               </table>
-              {orders.length === 0 && (
+              {visibleOrders.length === 0 && (
                 <div className="py-20 text-center text-slate-400">No hay pedidos registrados.</div>
               )}
               </div>

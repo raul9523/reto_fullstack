@@ -43,6 +43,7 @@ const UserOrders = () => {
   const getStatusColor = (status) => {
     switch (status) {
       case 'Entregado': return 'bg-green-100 text-green-600';
+      case 'Facturado': return 'bg-emerald-100 text-emerald-700';
       case 'Despachado': return 'bg-purple-100 text-purple-600';
       case 'Pagado': return 'bg-blue-100 text-blue-600';
       case 'Validación de Pago': return 'bg-red-100 text-red-600';
