@@ -618,7 +618,7 @@ const ProductsTab = () => {
       )}
 
       {/* Products table */}
-      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-3xl border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-left border-collapse">
           <thead className="bg-gray-50 text-[10px] uppercase tracking-widest font-bold text-slate-400">
             <tr>
