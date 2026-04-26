@@ -16,6 +16,9 @@ const TYPE_TO_SETTING_KEY: Record<string, string> = {
   order_placed: "onOrderPlaced",
   payment_confirmed: "onPaymentConfirmed",
   dispatched: "onDispatched",
+  invoiced: "onInvoiced",
+  delivered: "onDelivered",
+  cancelled: "onCancelled",
 };
 
 function buildEmailHtml(title: string, message: string, appUrl: string): string {

@@ -9,6 +9,9 @@ const EMAIL_NOTIFICATION_LABELS = {
   onOrderPlaced:      { label: 'Pedido Realizado',  desc: 'Cuando el cliente finaliza el pago o envía comprobante.' },
   onPaymentConfirmed: { label: 'Pago Confirmado',   desc: 'Cuando el admin valida el comprobante de transferencia.' },
   onDispatched:       { label: 'Pedido Despachado', desc: 'Cuando se ingresa la guía y el pedido se marca despachado.' },
+  onInvoiced:         { label: 'Pedido Facturado',  desc: 'Cuando el pedido es marcado como facturado.' },
+  onDelivered:        { label: 'Pedido Entregado',  desc: 'Cuando el pedido es confirmado como entregado al cliente.' },
+  onCancelled:        { label: 'Pedido Cancelado',  desc: 'Cuando el pedido es cancelado por el administrador.' },
 };
 
 const EMPTY_METHOD = { label: '', icon: '💳', description: '' };

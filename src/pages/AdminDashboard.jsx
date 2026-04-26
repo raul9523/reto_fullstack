@@ -241,18 +241,50 @@ const AdminDashboard = () => {
 
   const [trackingInfo, setTrackingInfo] = useState({ id: null, number: '', carrier: 'Coordinadora' });
 
+  const STATUS_NOTIFICATION_MAP = {
+    'Facturado': {
+      title: '🧾 Pedido Facturado',
+      message: (n) => `Tu pedido ${n} ha sido facturado. Pronto iniciamos el despacho.`,
+      notificationType: 'invoiced',
+    },
+    'Entregado': {
+      title: '✅ ¡Pedido Entregado!',
+      message: (n) => `Tu pedido ${n} fue entregado exitosamente. ¡Gracias por tu compra en Duo Dreams!`,
+      notificationType: 'delivered',
+    },
+    'Cancelado': {
+      title: '❌ Pedido Cancelado',
+      message: (n) => `Tu pedido ${n} ha sido cancelado. Contáctanos si tienes alguna duda.`,
+      notificationType: 'cancelled',
+    },
+  };
+
   const handleUpdateStatus = async (orderId, newStatus) => {
     setUpdatingId(orderId);
     try {
       await updateDoc(doc(db, 'orders', orderId), { status: newStatus });
+      const targetOrder = orders.find(o => o.id === orderId);
       if (newStatus === 'Pagado' || newStatus === 'Facturado') {
-        const targetOrder = orders.find(o => o.id === orderId);
         if (targetOrder) {
           await activateSubscriptionFromOrder({
             orderId,
             orderData: { ...targetOrder, status: newStatus },
           });
         }
+      }
+      // Notificar al cliente según el nuevo estado
+      const notifDef = STATUS_NOTIFICATION_MAP[newStatus];
+      if (notifDef && targetOrder && targetOrder.userId !== 'admin_manual') {
+        await addDoc(collection(db, 'notifications'), {
+          userId: targetOrder.userId,
+          title: notifDef.title,
+          message: notifDef.message(targetOrder.orderNumber),
+          createdAt: new Date().toISOString(),
+          read: false,
+          type: 'order_update',
+          sendEmail: true,
+          notificationType: notifDef.notificationType,
+        });
       }
       setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
       alert(`Pedido actualizado a: ${newStatus}`);
