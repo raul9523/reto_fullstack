@@ -298,7 +298,7 @@ const Registro = () => {
               {/* Dirección Estándar DIAN / Vereda */}
               <div className="sm:col-span-2 space-y-3 p-6 bg-gray-50 rounded-3xl border border-gray-100">
                 <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Dirección de Entrega</label>
-                <div className="flex gap-2">
+                <div className="flex flex-col sm:flex-row gap-2">
                   <select
                     id="viaType"
                     value={formData.addressParts?.viaType || 'Calle'}
@@ -315,16 +315,16 @@ const Registro = () => {
                         return { ...prev, addressParts: newParts, address: fullAddress.trim() };
                       });
                     }}
-                    className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none min-w-[120px]"
+                    className="w-full sm:w-auto bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none sm:min-w-[120px]"
                   >
                     {['Calle', 'Carrera', 'Avenida', 'Diagonal', 'Transversal', 'Vereda'].map(v => <option key={v} value={v}>{v}</option>)}
                   </select>
-                  
+
                   {formData.addressParts.viaType === 'Vereda' ? (
                     <input
-                      type="text" 
-                      placeholder="Nombre de la Vereda" 
-                      className="flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
+                      type="text"
+                      placeholder="Nombre de la Vereda"
+                      className="w-full sm:flex-1 bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
                       value={formData.addressParts.nombreVereda}
                       onChange={(e) => {
                         const val = e.target.value;
@@ -336,7 +336,7 @@ const Registro = () => {
                       required
                     />
                   ) : (
-                    <div className="flex-1 grid grid-cols-3 gap-2">
+                    <div className="w-full sm:flex-1 grid grid-cols-1 sm:grid-cols-3 gap-2">
                       <input
                         type="text" placeholder="Número" className="bg-white border border-gray-100 rounded-xl px-4 py-3 text-sm outline-none"
                         value={formData.addressParts?.numeroPrincipal || ''}
