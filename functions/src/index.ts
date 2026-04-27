@@ -1,5 +1,5 @@
 import { setGlobalOptions } from "firebase-functions";
-import { onDocumentCreated } from "firebase-functions/v2/firestore";
+import { onDocumentCreated, onDocumentDeleted } from "firebase-functions/v2/firestore";
 import { onCall, HttpsError } from "firebase-functions/v2/https";
 import { defineSecret } from "firebase-functions/params";
 import * as admin from "firebase-admin";
@@ -125,6 +125,68 @@ export const deductInventoryOnOrderCreate = onDocumentCreated(
       console.log(`Inventario deducido para orden ${event.params?.orderId || 'desconocida'}`);
     } catch (error) {
       console.error(`Error deduciendo inventario para orden ${event.params?.orderId || 'desconocida'}:`, error);
+    }
+  }
+);
+
+// ── Restaurar inventario cuando se elimina una orden ─────────────────────────────────
+export const restoreInventoryOnOrderDelete = onDocumentDeleted(
+  "orders/{orderId}",
+  async (event) => {
+    const orderData = event.data?.data() as {
+      items?: Array<{
+        id: string;
+        quantity: number;
+        selectedGender?: string;
+        selectedSize?: string;
+      }>;
+    } | undefined;
+
+    if (!orderData?.items || orderData.items.length === 0) return;
+
+    const db = admin.firestore();
+    const batch = db.batch();
+
+    try {
+      for (const item of orderData.items) {
+        const productRef = db.collection("products").doc(item.id);
+        const productSnap = await productRef.get();
+
+        if (!productSnap.exists) continue;
+
+        const productData = productSnap.data() as {
+          stockQuantity?: number;
+          sizeStock?: Record<string, number>;
+          handlesSizes?: boolean;
+          genders?: string[];
+        };
+
+        const currentStock = productData.stockQuantity ?? 0;
+
+        if (productData.handlesSizes && item.selectedGender && item.selectedSize) {
+          // Producto con tallas: restaurar sizeStock
+          const sizeStock = { ...productData.sizeStock };
+          const isMultiGender = (productData.genders?.length ?? 0) > 1;
+          const stockKey = isMultiGender
+            ? `${item.selectedGender}_${item.selectedSize}`
+            : item.selectedSize;
+
+          const currentSizeStock = sizeStock[stockKey] ?? 0;
+          sizeStock[stockKey] = currentSizeStock + item.quantity;
+
+          batch.update(productRef, { sizeStock });
+        } else {
+          // Producto sin tallas: restaurar stockQuantity
+          batch.update(productRef, {
+            stockQuantity: currentStock + item.quantity,
+          });
+        }
+      }
+
+      await batch.commit();
+      console.log(`Inventario restaurado para orden eliminada ${event.params?.orderId || 'desconocida'}`);
+    } catch (error) {
+      console.error(`Error restaurando inventario para orden ${event.params?.orderId || 'desconocida'}:`, error);
     }
   }
 );
