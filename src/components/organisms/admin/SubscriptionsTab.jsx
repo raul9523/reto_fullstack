@@ -188,20 +188,27 @@ const SubscriptionsTab = () => {
             <h3 className="text-xl font-black text-brand-dark mb-6">Editar Plan: {editingPlan.name}</h3>
             <div className="grid grid-cols-2 gap-4 mb-6">
               {[
-                { label: 'Nombre del Plan',              key: 'name',        type: 'text'   },
-                { label: 'Precio (COP/mes)',              key: 'price',       type: 'number' },
-                { label: 'Máx. Productos (-1=Ilimitado)', key: 'maxProducts', type: 'number' },
-                { label: 'Máx. Admins (-1=Ilimitado)',   key: 'maxAdmins',   type: 'number' },
-                { label: 'Días de prueba gratis',         key: 'trialDays',   type: 'number' },
-                { label: 'Descripción para tienda',       key: 'description', type: 'text' },
+                { label: 'Nombre del Plan',                  key: 'name',        type: 'text',   span: 1 },
+                { label: 'Precio (COP/mes)',                  key: 'price',       type: 'number', span: 1 },
+                { label: 'Máx. Productos (-1=Ilimitado)',     key: 'maxProducts', type: 'number', span: 1 },
+                { label: 'Máx. Admins (-1=Ilimitado)',       key: 'maxAdmins',   type: 'number', span: 1 },
+                { label: 'Días de prueba gratis',             key: 'trialDays',   type: 'number', span: 1 },
+                { label: 'Descripción visible al comprador', key: 'description', type: 'text',   span: 1 },
+                { label: 'URL Imagen del Plan (visible al comprador)', key: 'imageUrl', type: 'url', span: 2 },
               ].map(f => (
-                <div key={f.key} className="space-y-1">
+                <div key={f.key} className={`space-y-1${f.span === 2 ? ' col-span-2' : ''}`}>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f.label}</label>
-                  <input type={f.type} value={editingPlan[f.key]}
+                  <input type={f.type} value={editingPlan[f.key] ?? ''}
                     onChange={e => setEditingPlan(p => ({ ...p, [f.key]: f.type === 'number' ? Number(e.target.value) : e.target.value }))}
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 outline-none font-bold text-brand-dark focus:ring-2 focus:ring-brand-gold/30" />
                 </div>
               ))}
+              {editingPlan.imageUrl && (
+                <div className="col-span-2 flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
+                  <img src={editingPlan.imageUrl} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-gray-200" onError={e => { e.target.style.display = 'none'; }} />
+                  <p className="text-[10px] text-slate-400">Vista previa de imagen</p>
+                </div>
+              )}
             </div>
             <label className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50 mb-6 cursor-pointer">
               <span className="text-xs font-bold text-slate-600">Publicar este plan en la tienda principal</span>

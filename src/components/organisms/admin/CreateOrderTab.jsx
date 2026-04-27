@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { collection, getDocs, addDoc } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase.config';
 import Button from '../../atoms/Button';
@@ -6,19 +6,31 @@ import Input from '../../atoms/Input';
 import { useSettingsStore } from '../../../store/settingsStore';
 import { getSizesForGenderType, getSizeStockKey } from '../../../constants/sizes';
 
+const COLOMBIA_DATA = {
+  "Antioquia":      ["Medellín", "Envigado", "Itagüí", "Bello", "Rionegro", "Sabaneta"],
+  "Bogotá D.C.":    ["Bogotá"],
+  "Valle del Cauca":["Cali", "Palmira", "Buenaventura", "Tuluá", "Buga"],
+  "Atlántico":      ["Barranquilla", "Soledad", "Malambo", "Puerto Colombia"],
+  "Santander":      ["Bucaramanga", "Floridablanca", "Girón", "Piedecuesta", "Barrancabermeja"],
+  "Bolívar":        ["Cartagena", "Turbaco", "Magangué"],
+  "Cundinamarca":   ["Soacha", "Chía", "Zipaquirá", "Facatativá", "Fusagasugá"],
+  "Risaralda":      ["Pereira", "Dosquebradas"],
+  "Caldas":         ["Manizales"],
+  "Quindío":        ["Armenia"],
+};
+
+const EMPTY_CUSTOMER = {
+  name: '', email: '', phone: '', address: '',
+  department: 'Antioquia', city: 'Medellín',
+  documentType: '', documentNumber: '',
+};
+
 const CreateOrderTab = () => {
   const { settings, fetchSettings } = useSettingsStore();
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState([]);
-  const [customerInfo, setCustomerInfo] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    department: 'Antioquia',
-    city: 'Medellín'
-  });
+  const [customerInfo, setCustomerInfo] = useState(EMPTY_CUSTOMER);
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [creditDays, setCreditDays] = useState(30);
   const [chargeShipping, setChargeShipping] = useState(false);
@@ -28,6 +40,13 @@ const CreateOrderTab = () => {
   const [sizePickerProduct, setSizePickerProduct] = useState(null);
   const [pickedGender, setPickedGender] = useState('');
   const [pickedSize, setPickedSize] = useState('');
+
+  // User search state
+  const [allUsers, setAllUsers] = useState([]);
+  const [usersLoaded, setUsersLoaded] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userDropdownOpen, setUserDropdownOpen] = useState(false);
+  const userSearchRef = useRef(null);
 
   useEffect(() => {
     fetchSettings();
@@ -45,6 +64,49 @@ const CreateOrderTab = () => {
       setChargeShipping(true);
     }
   }, [settings.shippingCost, settings.shippingOnDelivery]);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (userSearchRef.current && !userSearchRef.current.contains(e.target)) {
+        setUserDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const loadUsers = async () => {
+    if (usersLoaded) return;
+    const snap = await getDocs(collection(db, 'users'));
+    setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    setUsersLoaded(true);
+  };
+
+  const filteredUsers = userSearch.length >= 2
+    ? allUsers.filter(u => {
+        const fullName = `${u.firstName || ''} ${u.lastName || ''}`.toLowerCase();
+        const email = (u.email || '').toLowerCase();
+        const phone = (u.phone || '');
+        const q = userSearch.toLowerCase();
+        return fullName.includes(q) || email.includes(q) || phone.includes(q);
+      }).slice(0, 8)
+    : [];
+
+  const handleUserSelect = (user) => {
+    setCustomerInfo({
+      name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
+      email: user.email || '',
+      phone: user.phone || '',
+      address: user.address || '',
+      department: user.department || 'Antioquia',
+      city: user.city || 'Medellín',
+      documentType: user.documentType || '',
+      documentNumber: user.documentNumber || '',
+    });
+    setUserSearch('');
+    setUserDropdownOpen(false);
+  };
 
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -153,7 +215,7 @@ const CreateOrderTab = () => {
       await addDoc(collection(db, 'orders'), orderData);
       alert(`Orden ${orderId} creada con éxito`);
       setSelectedItems([]);
-      setCustomerInfo({ name: '', email: '', phone: '', address: '', department: 'Antioquia', city: 'Medellín' });
+      setCustomerInfo(EMPTY_CUSTOMER);
     } catch (error) {
       console.error(error);
       alert("Error al crear la orden");
@@ -161,6 +223,8 @@ const CreateOrderTab = () => {
       setIsSubmitting(false);
     }
   };
+
+  const cityOptions = COLOMBIA_DATA[customerInfo.department] || [];
 
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 animate-fade-in">
@@ -176,7 +240,6 @@ const CreateOrderTab = () => {
               </div>
             </div>
 
-            {/* Selector de género si hay más de uno */}
             {(sizePickerProduct.genders?.length > 1) && (
               <div className="mb-4">
                 <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Género</p>
@@ -195,7 +258,6 @@ const CreateOrderTab = () => {
               </div>
             )}
 
-            {/* Grid de tallas */}
             <div className="mb-5">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">
                 Talla <span className="text-slate-300 normal-case">({sizePickerProduct.sizeType})</span>
@@ -283,16 +345,106 @@ const CreateOrderTab = () => {
       </div>
 
       {/* Formulario de Orden */}
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-3xl border border-gray-100 shadow-sm space-y-5">
         <h2 className="text-xl font-bold text-brand-dark">2. Datos del Cliente y Pago</h2>
 
-        <div className="grid grid-cols-2 gap-4">
-          <Input label="Nombre" value={customerInfo.name} onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})} required />
+        {/* Búsqueda de usuario registrado */}
+        <div ref={userSearchRef} className="relative">
+          <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
+            Buscar cliente registrado
+          </p>
+          <input
+            type="text"
+            placeholder="Nombre, email o teléfono..."
+            value={userSearch}
+            onFocus={() => { loadUsers(); setUserDropdownOpen(true); }}
+            onChange={(e) => { setUserSearch(e.target.value); setUserDropdownOpen(true); }}
+            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-gold transition-all"
+          />
+          {userDropdownOpen && filteredUsers.length > 0 && (
+            <div className="absolute z-20 top-full mt-1 w-full bg-white rounded-2xl shadow-lg border border-gray-100 max-h-44 overflow-y-auto">
+              {filteredUsers.map(u => (
+                <button
+                  key={u.id}
+                  type="button"
+                  onMouseDown={() => handleUserSelect(u)}
+                  className="w-full text-left px-4 py-3 hover:bg-gray-50 flex flex-col border-b border-gray-50 last:border-0"
+                >
+                  <span className="text-sm font-bold text-brand-dark">{u.firstName} {u.lastName}</span>
+                  <span className="text-[10px] text-slate-400">{u.email} {u.phone ? `· ${u.phone}` : ''}</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {userDropdownOpen && userSearch.length >= 2 && filteredUsers.length === 0 && usersLoaded && (
+            <div className="absolute z-20 top-full mt-1 w-full bg-white rounded-2xl shadow border border-gray-100 px-4 py-3 text-xs text-slate-400">
+              Sin resultados para "{userSearch}"
+            </div>
+          )}
+        </div>
+
+        {/* Nombre y Teléfono */}
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Nombre completo" value={customerInfo.name} onChange={e => setCustomerInfo({...customerInfo, name: e.target.value})} required />
           <Input label="Teléfono" value={customerInfo.phone} onChange={e => setCustomerInfo({...customerInfo, phone: e.target.value})} required />
         </div>
-        <Input label="Email (Opcional)" value={customerInfo.email} onChange={e => setCustomerInfo({...customerInfo, email: e.target.value})} />
+
+        {/* Documento */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Tipo doc. (opcional)</label>
+            <select
+              value={customerInfo.documentType}
+              onChange={e => setCustomerInfo({...customerInfo, documentType: e.target.value})}
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:border-brand-gold transition-all"
+            >
+              <option value="">Sin tipo</option>
+              <option value="CC">CC — Cédula de Ciudadanía</option>
+              <option value="CE">CE — Cédula de Extranjería</option>
+              <option value="NIT">NIT</option>
+              <option value="TI">TI — Tarjeta de Identidad</option>
+              <option value="PP">PP — Pasaporte</option>
+              <option value="PEP">PEP</option>
+            </select>
+          </div>
+          <Input label="Número doc. (opcional)" value={customerInfo.documentNumber} onChange={e => setCustomerInfo({...customerInfo, documentNumber: e.target.value})} />
+        </div>
+
+        {/* Email */}
+        <Input label="Email (opcional)" value={customerInfo.email} onChange={e => setCustomerInfo({...customerInfo, email: e.target.value})} />
+
+        {/* Departamento y Ciudad */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Departamento</label>
+            <select
+              value={customerInfo.department}
+              onChange={e => setCustomerInfo({...customerInfo, department: e.target.value, city: COLOMBIA_DATA[e.target.value]?.[0] || ''})}
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:border-brand-gold transition-all"
+            >
+              {Object.keys(COLOMBIA_DATA).map(dep => (
+                <option key={dep} value={dep}>{dep}</option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1">
+            <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Ciudad</label>
+            <select
+              value={customerInfo.city}
+              onChange={e => setCustomerInfo({...customerInfo, city: e.target.value})}
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-3 py-2.5 text-sm font-medium outline-none focus:border-brand-gold transition-all"
+            >
+              {cityOptions.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Dirección */}
         <Input label="Dirección" value={customerInfo.address} onChange={e => setCustomerInfo({...customerInfo, address: e.target.value})} required />
 
+        {/* Toggle envío */}
         <label className="flex items-center gap-3 cursor-pointer select-none">
           <div
             onClick={() => setChargeShipping(v => !v)}
@@ -305,13 +457,14 @@ const CreateOrderTab = () => {
           </span>
         </label>
 
-        <div className="grid grid-cols-2 gap-4">
+        {/* Forma de pago */}
+        <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Forma de Pago</label>
             <select
               value={paymentMethod}
               onChange={e => setPaymentMethod(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2 text-sm font-bold outline-none"
+              className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm font-bold outline-none"
             >
               <option value="efectivo">Efectivo</option>
               <option value="transferencia">Transferencia</option>
@@ -329,7 +482,7 @@ const CreateOrderTab = () => {
           )}
         </div>
 
-        {/* Resumen de Items Seleccionados */}
+        {/* Resumen */}
         <div className="border-t border-gray-100 pt-4">
           <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Resumen de Orden</h3>
           <div className="space-y-2 max-h-[200px] overflow-y-auto mb-4">
