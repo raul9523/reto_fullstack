@@ -43,7 +43,7 @@ const CloudinaryUploadWidget = ({
         // Crear FormData
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('upload_preset', 'duo_dreams_unsigned'); // Preset sin AUTH
+        formData.append('upload_preset', '169699265127113'); // Tu preset actual
         formData.append('folder', folder);
         formData.append('quality', 'auto:low'); // Optimización automática
 
