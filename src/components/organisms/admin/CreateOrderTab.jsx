@@ -217,8 +217,9 @@ const CreateOrderTab = () => {
 
       await addDoc(collection(db, 'orders'), orderData);
 
-      // Crear notificación si hay usuario asignado
-      if (selectedUserId) {
+      // Crear notificación si hay usuario asignado y está habilitada en configuraciones
+      const sendNotification = settings.emailNotifications?.onOrderPlaced ?? true;
+      if (selectedUserId && sendNotification) {
         await addDoc(collection(db, 'notifications'), {
           userId: selectedUserId,
           title: 'Nueva Orden Creada',
