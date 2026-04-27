@@ -163,6 +163,18 @@ const SettingsTab = () => {
               value={localSettings.logoUrl || ''}
               onChange={(e) => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
             />
+            <label className="flex items-center justify-between p-3 border border-gray-100 rounded-xl cursor-pointer hover:bg-white transition-colors bg-white">
+              <div className="flex flex-col">
+                <span className="text-sm font-bold text-brand-dark">Mostrar nombre de marca en el encabezado</span>
+                <span className="text-[10px] text-slate-400">Muestra el nombre junto al logo en la tienda.</span>
+              </div>
+              <input
+                type="checkbox"
+                checked={localSettings.showBrandNameInHeader ?? false}
+                onChange={() => setLocalSettings({ ...localSettings, showBrandNameInHeader: !localSettings.showBrandNameInHeader })}
+                className="w-5 h-5 rounded text-brand-gold focus:ring-brand-gold"
+              />
+            </label>
           </div>
           <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-dashed border-gray-200 min-h-[120px]">
             <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Previsualización del Logo</p>

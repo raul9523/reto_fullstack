@@ -36,18 +36,24 @@ const Header = ({ user, onLoginClick, onLogoutClick, cartItemCount = 0, onCartCl
         <div className="flex justify-between items-center h-16">
           
           {/* Logo / Brand */}
-          <div className="flex-shrink-0 flex items-center cursor-pointer" onClick={() => window.location.href = '/'}>
+          <div className="flex-shrink-0 flex items-center gap-3 cursor-pointer" onClick={() => window.location.href = '/'}>
             {brandLogoUrl ? (
-              <img 
+              <img
                 src={brandLogoUrl}
                 alt={`${brandName} Logo`}
-                className="h-8 sm:h-10 w-auto object-contain transition-transform hover:scale-105"
+                className="h-10 sm:h-12 lg:h-14 w-auto object-contain transition-transform hover:scale-105"
               />
             ) : (
               <>
                 <span className="text-2xl font-bold text-brand-gold">{brandName.split(' ')[0]?.toUpperCase() || 'DUO'}</span>
                 <span className="text-2xl font-bold text-slate-800 ml-1">{brandName.split(' ').slice(1).join(' ').toUpperCase() || 'DREAMS'}</span>
               </>
+            )}
+            {settings?.showBrandNameInHeader && brandLogoUrl && (
+              <div className="hidden sm:flex flex-col">
+                <span className="text-xs font-bold text-brand-gold leading-tight">{brandName.split(' ')[0]?.toUpperCase() || 'DUO'}</span>
+                <span className="text-xs font-bold text-slate-800 leading-tight">{brandName.split(' ').slice(1).join(' ').toUpperCase() || 'DREAMS'}</span>
+              </div>
             )}
           </div>
 
