@@ -172,6 +172,7 @@ const CreateOrderTab = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (selectedItems.length === 0) return alert("Selecciona al menos un producto");
+    if (paymentMethod === 'credito' && !creditDays) return alert("Ingresa los días de crédito");
 
     setIsSubmitting(true);
     try {
@@ -206,7 +207,7 @@ const CreateOrderTab = () => {
         totalAmount: total,
         taxConfigSnapshot: taxSettings,
         paymentMethod,
-        creditDays: paymentMethod === 'credito' ? creditDays : null,
+        creditDays: paymentMethod === 'credito' ? Number(creditDays) : null,
         status: paymentMethod === 'credito' ? 'Por Cobrar' : 'Pagado',
         isManual: true,
         createdAt: new Date().toISOString()
@@ -216,9 +217,10 @@ const CreateOrderTab = () => {
       alert(`Orden ${orderId} creada con éxito`);
       setSelectedItems([]);
       setCustomerInfo(EMPTY_CUSTOMER);
+      setCreditDays(30);
     } catch (error) {
       console.error(error);
-      alert("Error al crear la orden");
+      alert("Error al crear la orden: " + error.message);
     } finally {
       setIsSubmitting(false);
     }
@@ -476,8 +478,14 @@ const CreateOrderTab = () => {
             <Input
               label="Días de Crédito"
               type="number"
-              value={creditDays || ''}
-              onChange={e => setCreditDays(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 0))}
+              min="1"
+              max="365"
+              required
+              value={creditDays || 30}
+              onChange={e => {
+                const val = e.target.value;
+                setCreditDays(val === '' ? 30 : Math.max(1, Math.min(365, parseInt(val) || 30)));
+              }}
             />
           )}
         </div>
@@ -523,7 +531,7 @@ const CreateOrderTab = () => {
           </div>
         </div>
 
-        <Button className="w-full py-4" disabled={isSubmitting}>
+        <Button type="submit" className="w-full py-4" disabled={isSubmitting || selectedItems.length === 0}>
           {isSubmitting ? 'Creando...' : 'Finalizar y Crear Orden'}
         </Button>
       </form>
