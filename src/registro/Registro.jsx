@@ -10,19 +10,19 @@ const calculateDV = (nit) => {
   // Limpiamos el string por si tiene puntos o guiones
   const cleanNit = nit.replace(/\D/g, '');
   if (!cleanNit || isNaN(cleanNit)) return "";
-  
+
   const vpri = [3, 7, 13, 17, 19, 23, 29, 37, 41, 43, 47, 53, 59, 67, 71];
   let x = 0;
   let y = 0;
   let z = cleanNit.length;
-  
+
   for (let i = 0; i < z; i++) {
     y = parseInt(cleanNit.charAt(i), 10);
     x += y * vpri[z - 1 - i];
   }
-  
+
   y = x % 11;
-  return y > 1 ? (11 - y).toString() : y.toString();
+  return (y > 1 ? (11 - y).toString() : y.toString()) || "0";
 };
 
 const COLOMBIA_DATA = {
@@ -225,7 +225,7 @@ const Registro = () => {
                   <Input
                     id="dv"
                     label="Dígito de Verificación"
-                    value={formData.dv}
+                    value={formData.dv || ''}
                     readOnly
                     disabled
                     className="bg-gray-50 text-brand-gold font-bold"
