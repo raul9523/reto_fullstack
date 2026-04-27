@@ -3,6 +3,7 @@ import { collection, getDocs, doc, updateDoc, addDoc, deleteDoc, query, where } 
 import { db } from '../../../firebase/firebase.config';
 import Button from '../../atoms/Button';
 import Input from '../../atoms/Input';
+import CloudinaryUploadWidget from '../../atoms/CloudinaryUploadWidget';
 import { GENDERS, SIZE_TYPES_BY_GENDER, getSizesForGenderType, getSizeStockKey } from '../../../constants/sizes';
 import { useSettingsStore } from '../../../store/settingsStore';
 
@@ -454,9 +455,55 @@ const ProductsTab = () => {
 
           {/* Imágenes */}
           <div className="md:col-span-2 space-y-3">
-            <Input id="imageUrl" label="URL Imagen Principal" placeholder="https://..." value={formData.imageUrl} onChange={handleInputChange} />
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-400 uppercase ml-1">Imágenes Adicionales</label>
+            <div>
+              <label className="text-xs font-bold text-slate-400 uppercase ml-1 block mb-2">Imagen Principal</label>
+              <CloudinaryUploadWidget
+                onUpload={(url) => setFormData(prev => ({ ...prev, imageUrl: url }))}
+                label="Subir Imagen Principal"
+                folder="duo-dreams/products"
+                showPreview={true}
+                previewUrl={formData.imageUrl}
+                onRemovePreview={() => setFormData(prev => ({ ...prev, imageUrl: '' }))}
+              />
+            </div>
+
+            {/* Alternativa: URL manual */}
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-[10px] text-slate-400 font-bold uppercase mb-2">O ingresa URL manual</p>
+              <Input id="imageUrl" placeholder="https://..." value={formData.imageUrl} onChange={handleInputChange} />
+            </div>
+          </div>
+
+          {/* Imágenes Adicionales */}
+          <div className="md:col-span-2 space-y-3">
+            <label className="text-xs font-bold text-slate-400 uppercase ml-1">Imágenes Adicionales (Galería)</label>
+            <CloudinaryUploadWidget
+              onUpload={(url) => {
+                setFormData(prev => ({ ...prev, images: [...(prev.images || []), url] }));
+              }}
+              label="+ Agregar Imagen a Galería"
+              folder="duo-dreams/products"
+              multiple={false}
+              showPreview={false}
+            />
+
+            {(formData.images || []).length > 0 && (
+              <div className="flex gap-2 flex-wrap mt-3">
+                {formData.images.map((url, i) => (
+                  <div key={i} className="relative group">
+                    <img src={url} alt="" className="w-16 h-16 object-cover rounded-xl border border-gray-100" />
+                    <button type="button" onClick={() => handleRemoveImage(i)}
+                      className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                      ×
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Alternativa: URL manual */}
+            <div className="border-t border-gray-100 pt-3">
+              <p className="text-[10px] text-slate-400 font-bold uppercase mb-2 block">O agregar URL manual</p>
               <div className="flex gap-2">
                 <input type="url" value={newImageUrl} onChange={e => setNewImageUrl(e.target.value)}
                   placeholder="https://... URL imagen adicional"
@@ -466,19 +513,6 @@ const ProductsTab = () => {
                   + Agregar
                 </button>
               </div>
-              {(formData.images || []).length > 0 && (
-                <div className="flex gap-2 flex-wrap mt-2">
-                  {formData.images.map((url, i) => (
-                    <div key={i} className="relative group">
-                      <img src={url} alt="" className="w-16 h-16 object-cover rounded-xl border border-gray-100" />
-                      <button type="button" onClick={() => handleRemoveImage(i)}
-                        className="absolute -top-1.5 -right-1.5 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        ×
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
 

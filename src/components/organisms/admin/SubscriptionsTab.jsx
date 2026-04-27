@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { collection, getDocs, doc, setDoc, query, orderBy } from 'firebase/firestore';
 import { db } from '../../../firebase/firebase.config';
+import CloudinaryUploadWidget from '../../atoms/CloudinaryUploadWidget';
 
 const ALL_MODULES = [
   { id: 'dashboard',    label: 'Dashboard / Estadísticas',   desc: 'Gráficas de ventas, métricas e indicadores' },
@@ -194,7 +195,6 @@ const SubscriptionsTab = () => {
                 { label: 'Máx. Admins (-1=Ilimitado)',       key: 'maxAdmins',   type: 'number', span: 1 },
                 { label: 'Días de prueba gratis',             key: 'trialDays',   type: 'number', span: 1 },
                 { label: 'Descripción visible al comprador', key: 'description', type: 'text',   span: 1 },
-                { label: 'URL Imagen del Plan (visible al comprador)', key: 'imageUrl', type: 'url', span: 2 },
               ].map(f => (
                 <div key={f.key} className={`space-y-1${f.span === 2 ? ' col-span-2' : ''}`}>
                   <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{f.label}</label>
@@ -203,12 +203,24 @@ const SubscriptionsTab = () => {
                     className="w-full bg-gray-50 rounded-xl px-4 py-3 outline-none font-bold text-brand-dark focus:ring-2 focus:ring-brand-gold/30" />
                 </div>
               ))}
-              {editingPlan.imageUrl && (
-                <div className="col-span-2 flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-100">
-                  <img src={editingPlan.imageUrl} alt="preview" className="w-16 h-16 object-cover rounded-lg border border-gray-200" onError={e => { e.target.style.display = 'none'; }} />
-                  <p className="text-[10px] text-slate-400">Vista previa de imagen</p>
-                </div>
-              )}
+
+              {/* Imagen con Cloudinary */}
+              <div className="col-span-2 space-y-2 border-t border-gray-100 pt-4">
+                <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Imagen del Plan (visible al comprador)</label>
+                <CloudinaryUploadWidget
+                  onUpload={(url) => setEditingPlan(p => ({ ...p, imageUrl: url }))}
+                  label="Subir Imagen del Plan"
+                  folder="duo-dreams/plans"
+                  showPreview={true}
+                  previewUrl={editingPlan.imageUrl}
+                  onRemovePreview={() => setEditingPlan(p => ({ ...p, imageUrl: '' }))}
+                />
+                <p className="text-[10px] text-slate-400 italic">O ingresa URL manual:</p>
+                <input type="url" value={editingPlan.imageUrl ?? ''}
+                  onChange={e => setEditingPlan(p => ({ ...p, imageUrl: e.target.value }))}
+                  placeholder="https://..."
+                  className="w-full bg-gray-50 rounded-xl px-4 py-3 outline-none font-bold text-brand-dark focus:ring-2 focus:ring-brand-gold/30" />
+              </div>
             </div>
             <label className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-gray-50 mb-6 cursor-pointer">
               <span className="text-xs font-bold text-slate-600">Publicar este plan en la tienda principal</span>

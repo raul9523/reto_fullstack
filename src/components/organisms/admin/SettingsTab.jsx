@@ -4,6 +4,7 @@ import { db } from '../../../firebase/firebase.config';
 import { useSettingsStore } from '../../../store/settingsStore';
 import Button from '../../atoms/Button';
 import Input from '../../atoms/Input';
+import CloudinaryUploadWidget from '../../atoms/CloudinaryUploadWidget';
 
 const EMAIL_NOTIFICATION_LABELS = {
   onOrderPlaced:      { label: 'Pedido Realizado',  desc: 'Cuando el cliente finaliza el pago o envía comprobante.' },
@@ -146,13 +147,23 @@ const SettingsTab = () => {
       {/* Identidad de Marca */}
       <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100 space-y-6">
         <h3 className="text-sm font-bold text-slate-400 uppercase tracking-widest">Identidad de Marca</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          <Input
-            label="URL del Logo de la Web"
-            placeholder="https://ejemplo.com/logo.png"
-            value={localSettings.logoUrl || ''}
-            onChange={(e) => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+          <div className="space-y-3">
+            <CloudinaryUploadWidget
+              onUpload={(url) => setLocalSettings({ ...localSettings, logoUrl: url })}
+              label="Subir Logo de la Tienda"
+              folder="duo-dreams/branding"
+              showPreview={true}
+              previewUrl={localSettings.logoUrl}
+              onRemovePreview={() => setLocalSettings({ ...localSettings, logoUrl: '' })}
+            />
+            <p className="text-[10px] text-slate-400 font-bold uppercase">O ingresa URL manual:</p>
+            <Input
+              placeholder="https://ejemplo.com/logo.png"
+              value={localSettings.logoUrl || ''}
+              onChange={(e) => setLocalSettings({ ...localSettings, logoUrl: e.target.value })}
+            />
+          </div>
           <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-dashed border-gray-200 min-h-[120px]">
             <p className="text-[10px] font-bold text-slate-400 uppercase mb-3">Previsualización del Logo</p>
             {localSettings.logoUrl ? (
@@ -160,7 +171,7 @@ const SettingsTab = () => {
                 src={localSettings.logoUrl}
                 alt="Logo Preview"
                 className="max-h-16 object-contain"
-                onError={(e) => { e.target.src = ''; alert('URL de imagen no válida'); }}
+                onError={(e) => { e.target.src = ''; }}
               />
             ) : (
               <div className="text-xs text-slate-300 italic">No hay logo configurado</div>
