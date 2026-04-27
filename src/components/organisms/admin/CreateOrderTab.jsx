@@ -476,8 +476,8 @@ const CreateOrderTab = () => {
             <Input
               label="Días de Crédito"
               type="number"
-              value={creditDays}
-              onChange={e => setCreditDays(parseInt(e.target.value))}
+              value={creditDays || ''}
+              onChange={e => setCreditDays(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 0))}
             />
           )}
         </div>
