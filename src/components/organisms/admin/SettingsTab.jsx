@@ -131,7 +131,19 @@ const SettingsTab = () => {
 
   const handleSave = async () => {
     try {
-      await updateSettings(localSettings);
+      // Asegurar que todos los campos de emailNotifications existan
+      const updatedSettings = {
+        ...localSettings,
+        emailNotifications: {
+          onOrderPlaced: localSettings.emailNotifications?.onOrderPlaced ?? true,
+          onPaymentConfirmed: localSettings.emailNotifications?.onPaymentConfirmed ?? true,
+          onDispatched: localSettings.emailNotifications?.onDispatched ?? true,
+          onInvoiced: localSettings.emailNotifications?.onInvoiced ?? true,
+          onDelivered: localSettings.emailNotifications?.onDelivered ?? true,
+          onCancelled: localSettings.emailNotifications?.onCancelled ?? true,
+        }
+      };
+      await updateSettings(updatedSettings);
       alert('Configuración guardada correctamente.');
     } catch {
       alert('Error al guardar.');

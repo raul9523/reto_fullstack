@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, orderBy } from 'firebase/firestore';
 import { db } from '../firebase/firebase.config';
 import { useUserStore } from '../store/userStore';
 import MainLayout from '../components/templates/MainLayout';
@@ -14,30 +14,29 @@ const UserOrders = () => {
   useEffect(() => {
     if (!currentUser) return;
 
-    const fetchOrders = async () => {
+    setIsLoading(true);
+    const q = query(
+      collection(db, 'orders'),
+      where('userId', '==', currentUser.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    // Real-time listener en lugar de getDocs
+    const unsubscribe = onSnapshot(q, (querySnapshot) => {
       try {
-        const q = query(
-          collection(db, 'orders'),
-          where('userId', '==', currentUser.uid)
-        );
-        const querySnapshot = await getDocs(q);
         const ordersData = [];
         querySnapshot.forEach((doc) => {
           ordersData.push({ id: doc.id, ...doc.data() });
         });
-        
-        // Ordenar en memoria para evitar el error de índice de Firestore
-        ordersData.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-        
         setOrders(ordersData);
       } catch (error) {
         console.error("Error al cargar pedidos:", error);
       } finally {
         setIsLoading(false);
       }
-    };
+    });
 
-    fetchOrders();
+    return () => unsubscribe();
   }, [currentUser]);
 
   const getStatusColor = (status) => {
