@@ -122,9 +122,9 @@ export const deductInventoryOnOrderCreate = onDocumentCreated(
       }
 
       await batch.commit();
-      console.log(`Inventario deducido para orden ${event.document.id}`);
+      console.log(`Inventario deducido para orden ${event.params?.orderId || 'desconocida'}`);
     } catch (error) {
-      console.error(`Error deduciendo inventario para orden ${event.document.id}:`, error);
+      console.error(`Error deduciendo inventario para orden ${event.params?.orderId || 'desconocida'}:`, error);
     }
   }
 );
