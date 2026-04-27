@@ -31,6 +31,7 @@ const CreateOrderTab = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedItems, setSelectedItems] = useState([]);
   const [customerInfo, setCustomerInfo] = useState(EMPTY_CUSTOMER);
+  const [selectedUserId, setSelectedUserId] = useState(null);
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [creditDays, setCreditDays] = useState(30);
   const [chargeShipping, setChargeShipping] = useState(false);
@@ -94,6 +95,7 @@ const CreateOrderTab = () => {
     : [];
 
   const handleUserSelect = (user) => {
+    setSelectedUserId(user.id);
     setCustomerInfo({
       name: `${user.firstName || ''} ${user.lastName || ''}`.trim(),
       email: user.email || '',
@@ -183,7 +185,7 @@ const CreateOrderTab = () => {
       const orderId = `MAN-${Date.now().toString().slice(-6)}`;
       const orderData = {
         orderNumber: orderId,
-        userId: 'admin_manual',
+        userId: selectedUserId || 'admin_manual',
         userEmail: customerInfo.email || 'cliente_manual@duodreams.com',
         customerInfo,
         items: selectedItems.map(item => ({
@@ -214,9 +216,25 @@ const CreateOrderTab = () => {
       };
 
       await addDoc(collection(db, 'orders'), orderData);
-      alert(`Orden ${orderId} creada con éxito`);
+
+      // Crear notificación si hay usuario asignado
+      if (selectedUserId) {
+        await addDoc(collection(db, 'notifications'), {
+          userId: selectedUserId,
+          title: 'Nueva Orden Creada',
+          message: `Hola ${customerInfo.name}, tu orden ${orderId} ha sido creada. Total: $${total.toLocaleString()}`,
+          type: 'order_update',
+          notificationType: 'order_placed',
+          read: false,
+          createdAt: new Date().toISOString(),
+          sendEmail: true
+        });
+      }
+
+      alert(`Orden ${orderId} creada con éxito${selectedUserId ? ' y notificación enviada' : ''}`);
       setSelectedItems([]);
       setCustomerInfo(EMPTY_CUSTOMER);
+      setSelectedUserId(null);
       setCreditDays(30);
     } catch (error) {
       console.error(error);
@@ -353,7 +371,7 @@ const CreateOrderTab = () => {
         {/* Búsqueda de usuario registrado */}
         <div ref={userSearchRef} className="relative">
           <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5">
-            Buscar cliente registrado
+            Buscar cliente registrado {selectedUserId && <span className="text-brand-gold">✓ Seleccionado</span>}
           </p>
           <input
             type="text"
@@ -361,7 +379,9 @@ const CreateOrderTab = () => {
             value={userSearch}
             onFocus={() => { loadUsers(); setUserDropdownOpen(true); }}
             onChange={(e) => { setUserSearch(e.target.value); setUserDropdownOpen(true); }}
-            className="w-full bg-gray-50 border border-gray-100 rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-gold transition-all"
+            className={`w-full bg-gray-50 border rounded-xl px-4 py-2.5 text-sm outline-none focus:border-brand-gold transition-all ${
+              selectedUserId ? 'border-brand-gold/50 bg-brand-gold/5' : 'border-gray-100'
+            }`}
           />
           {userDropdownOpen && filteredUsers.length > 0 && (
             <div className="absolute z-20 top-full mt-1 w-full bg-white rounded-2xl shadow-lg border border-gray-100 max-h-44 overflow-y-auto">
