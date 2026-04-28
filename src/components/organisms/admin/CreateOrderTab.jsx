@@ -35,6 +35,7 @@ const CreateOrderTab = () => {
   const [paymentMethod, setPaymentMethod] = useState('efectivo');
   const [creditDays, setCreditDays] = useState(30);
   const [chargeShipping, setChargeShipping] = useState(false);
+  const [isBackorder, setIsBackorder] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Size picker state
@@ -130,6 +131,7 @@ const CreateOrderTab = () => {
   };
 
   const getSizeStock = (product, gender, size) => {
+    if (isBackorder) return 99; // Permite seleccionar cualquier talla en encargo
     if (!product.sizeStock) return 0;
     const key = (product.genders?.length > 1) ? getSizeStockKey(gender, size) : size;
     return product.sizeStock[key] ?? 0;
@@ -210,8 +212,9 @@ const CreateOrderTab = () => {
         taxConfigSnapshot: taxSettings,
         paymentMethod,
         creditDays: paymentMethod === 'credito' ? Number(creditDays) : null,
-        status: paymentMethod === 'credito' ? 'Por Cobrar' : 'Pagado',
+        status: isBackorder ? 'Validación de Encargo' : (paymentMethod === 'credito' ? 'Por Cobrar' : 'Pagado'),
         isManual: true,
+        isBackorder: isBackorder,
         createdAt: new Date().toISOString()
       };
 
@@ -237,6 +240,7 @@ const CreateOrderTab = () => {
       setCustomerInfo(EMPTY_CUSTOMER);
       setSelectedUserId(null);
       setCreditDays(30);
+      setIsBackorder(false);
     } catch (error) {
       console.error(error);
       alert("Error al crear la orden: " + error.message);
@@ -477,6 +481,19 @@ const CreateOrderTab = () => {
           </div>
           <span className="text-sm font-semibold text-brand-dark">
             Cobrar envío {chargeShipping && settings.shippingCost > 0 ? `($${(settings.shippingCost).toLocaleString()})` : ''}
+          </span>
+        </label>
+
+        {/* Toggle encargo */}
+        <label className="flex items-center gap-3 cursor-pointer select-none">
+          <div
+            onClick={() => setIsBackorder(v => !v)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${isBackorder ? 'bg-orange-500' : 'bg-gray-200'}`}
+          >
+            <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${isBackorder ? 'translate-x-5' : ''}`} />
+          </div>
+          <span className="text-sm font-semibold text-brand-dark">
+            Crear como Encargo {isBackorder && <span className="text-[10px] text-orange-500 font-black">⚠️ Por Encargo</span>}
           </span>
         </label>
 
