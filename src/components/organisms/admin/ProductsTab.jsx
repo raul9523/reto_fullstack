@@ -184,6 +184,10 @@ const ProductsTab = () => {
     setFormData(prev => ({ ...prev, sizeStock: { ...prev.sizeStock, [key]: parseInt(value) || 0 } }));
   };
 
+  const calculateTotalStock = (sizeStock) => {
+    return Object.values(sizeStock || {}).reduce((sum, val) => sum + (parseInt(val) || 0), 0);
+  };
+
   const getSizeStockValue = (gender, size) => {
     const key = activeGenders.length > 1 ? getSizeStockKey(gender, size) : size;
     return formData.sizeStock?.[key] ?? 0;
@@ -246,6 +250,11 @@ const ProductsTab = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // If product has sizes, calculate stockQuantity from sizeStock
+      const calculatedStockQuantity = formData.handlesSizes
+        ? calculateTotalStock(formData.sizeStock)
+        : Number(formData.stockQuantity) || 0;
+
       const sanitized = {
         name: formData.name || '',
         description: formData.description || '',
@@ -254,7 +263,7 @@ const ProductsTab = () => {
         purchaseVat: Number(formData.purchaseVat) || 0,
         purchaseVatRate: Number(formData.purchaseVatRate) || 0,
         cost: (Number(formData.costBase) || 0) + (Number(formData.purchaseVat) || 0),
-        stockQuantity: Number(formData.stockQuantity) || 0,
+        stockQuantity: calculatedStockQuantity,
         category: formData.category || '',
         imageUrl: formData.imageUrl || '',
         images: formData.images || [],
@@ -450,7 +459,15 @@ const ProductsTab = () => {
             </p>
           </div>
           <div className="grid grid-cols-2 gap-4">
-            <Input id="stockQuantity" label="Stock Inicial" type="number" value={formData.stockQuantity} onChange={handleInputChange} required />
+            {!formData.handlesSizes && (
+              <Input id="stockQuantity" label="Stock Inicial" type="number" value={formData.stockQuantity} onChange={handleInputChange} required />
+            )}
+            {formData.handlesSizes && Object.keys(formData.sizeStock).length > 0 && (
+              <div className="bg-brand-gold/10 border border-brand-gold/30 rounded-xl px-4 py-3 flex flex-col justify-center">
+                <p className="text-[10px] font-bold text-slate-400 uppercase">Stock Total (Calculado)</p>
+                <p className="text-sm font-black text-brand-gold">{calculateTotalStock(formData.sizeStock)} unidades</p>
+              </div>
+            )}
           </div>
 
           {/* Imágenes */}

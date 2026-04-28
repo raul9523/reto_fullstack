@@ -112,7 +112,10 @@ export const deductInventoryOnOrderCreate = onDocumentCreated(
           const currentSizeStock = sizeStock[stockKey] ?? 0;
           sizeStock[stockKey] = Math.max(0, currentSizeStock - item.quantity);
 
-          batch.update(productRef, { sizeStock });
+          // Calculate total stock from all sizes
+          const newTotalStock = Object.values(sizeStock).reduce((sum, val) => sum + (val as number || 0), 0);
+
+          batch.update(productRef, { sizeStock, stockQuantity: newTotalStock });
         } else {
           // Producto sin tallas: actualizar stockQuantity
           batch.update(productRef, {
@@ -174,7 +177,10 @@ export const restoreInventoryOnOrderDelete = onDocumentDeleted(
           const currentSizeStock = sizeStock[stockKey] ?? 0;
           sizeStock[stockKey] = currentSizeStock + item.quantity;
 
-          batch.update(productRef, { sizeStock });
+          // Calculate total stock from all sizes
+          const newTotalStock = Object.values(sizeStock).reduce((sum, val) => sum + (val as number || 0), 0);
+
+          batch.update(productRef, { sizeStock, stockQuantity: newTotalStock });
         } else {
           // Producto sin tallas: restaurar stockQuantity
           batch.update(productRef, {
