@@ -17,6 +17,7 @@ const SettingsTab = React.lazy(() => import('../components/organisms/admin/Setti
 const UsersTab = React.lazy(() => import('../components/organisms/admin/UsersTab'));
 const CreateOrderTab = React.lazy(() => import('../components/organisms/admin/CreateOrderTab'));
 const SubscriptionsTab = React.lazy(() => import('../components/organisms/admin/SubscriptionsTab'));
+const OrderBacklogTab = React.lazy(() => import('../components/organisms/admin/OrderBacklogTab'));
 
 const MASTER_ADMIN = 'raulpte0211@gmail.com';
 
@@ -373,6 +374,7 @@ const AdminDashboard = () => {
   const tabs = [
     { id: 'dashboard', label: '📊 Dashboard', color: 'text-brand-gold' },
     { id: 'orders', label: '📦 Pedidos', color: 'text-brand-dark' },
+    { id: 'backlog', label: '📋 Encargos', color: 'text-orange-600' },
     { id: 'create_order', label: '➕ Crear Pedido', color: 'text-brand-gold' },
     { id: 'products', label: '👗 Inventario', color: 'text-brand-dark' },
     { id: 'users', label: '👥 Usuarios', color: 'text-brand-dark' },
@@ -431,6 +433,7 @@ const AdminDashboard = () => {
             {!isTenantOwnerAdmin && activeTab === 'users' && <UsersTab />}
             {!isTenantOwnerAdmin && activeTab === 'create_order' && <CreateOrderTab />}
             {!isTenantOwnerAdmin && activeTab === 'subscriptions' && <SubscriptionsTab />}
+            {!isTenantOwnerAdmin && activeTab === 'backlog' && <OrderBacklogTab />}
 
             {isTenantOwnerAdmin && activeTab === 'settings' && (
               <div className="bg-white rounded-3xl border border-gray-100 shadow-sm p-8 space-y-6">
